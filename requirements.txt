@@ -1,0 +1,21 @@
+# Claude Agent SDK
+claude-agent-sdk>=0.1.0
+
+# LLM Clients (optional - for direct API access)
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Data Aggregation
+feedparser>=6.0.0  # Kicker RSS feeds (primary news source)
+requests>=2.31.0   # HTTP requests for sports APIs
+# kickerde-api-client>=0.1.0  # Optional: for league/team data (not news)
+
+# Data Validation
+pydantic>=2.0.0
+
+# Environment Management
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
