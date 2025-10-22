@@ -12,9 +12,6 @@ ENV/
 # Environment variables
 .env
 
-# Test results
-test_results_*.json
-
 # IDE
 .vscode/
 .idea/
