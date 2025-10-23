@@ -1,8 +1,19 @@
-# KSI Prototype - Quick Start Guide
+# ⚽ Fußball GPT
 
-A CLI prototype that aggregates real-time sports data and uses LLM-powered RAG to answer natural language queries.
+**AI für deutschen Fußball**
 
-## Setup
+An AI-powered assistant for German football fans, providing real-time Bundesliga stats, tactical analysis, and news in professional German journalism style.
+
+## 🎯 Features
+
+- **Real-time Bundesliga standings** from TheSportsDB (free tier)
+- **Latest news** from Kicker.de RSS feeds
+- **Player statistics** from API-Football (goals, assists, cards, minutes)
+- **Multi-turn conversations** with context retention (8.0/10 tested)
+- **Professional German journalism tone** (8.5/10 quality)
+- **Error handling** (91.7% pass rate on edge cases)
+
+## 🚀 Setup
 
 1. **Create virtual environment**
 ```bash
@@ -96,3 +107,42 @@ This shows what data is being fetched without querying the LLM.
 - Some sources may require API keys (check TheSportsDB limits)
 - RSS feeds should work without authentication
 - Check network connection
+
+## ⚖️ Legal & Compliance
+
+**Product Name:** "Fußball GPT"
+- ✅ No trademark conflicts with DFL
+- Safe from legal issues
+
+**Required Disclaimer:**
+```
+This product is not affiliated with, sponsored by, or endorsed by
+Deutsche Fußball Liga GmbH or the Bundesliga. All trademarks are
+property of their respective owners.
+```
+
+**Data Attribution:**
+- Powered by Kicker.de news
+- Real-time data from TheSportsDB & API-Football
+
+## 📊 Beta Test Results
+
+**Ready for beta launch:** ✅
+
+- **Multi-Turn Conversations:** 8.0/10 (context retention works well)
+- **Error Handling:** 91.7% pass rate (graceful degradation)
+- **Multi-Persona Testing:**
+  - Expert Analyst: 8-9/10 ✅
+  - Betting Enthusiast: 6-9/10 ✅
+  - Casual Fan: 5/10 ⚠️
+  - Fantasy Player: 2-8/10 ⚠️
+
+See `BETA_LAUNCH_READY.md` for complete test results.
+
+## 📄 License
+
+MIT License
+
+---
+
+**Fußball GPT** - AI für deutschen Fußball

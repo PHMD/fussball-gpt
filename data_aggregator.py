@@ -12,12 +12,15 @@ from datetime import datetime
 from typing import Optional
 import feedparser
 import requests
+from dotenv import load_dotenv
 from models import (
     AggregatedData,
     DataSource,
     NewsArticle,
     SportsEvent,
 )
+
+load_dotenv()
 
 
 class DataAggregator:
@@ -26,6 +29,10 @@ class DataAggregator:
     def __init__(self):
         self.kicker_rss_url = "https://newsfeed.kicker.de/opml"
         self.sports_db_base_url = "https://www.thesportsdb.com/api/v1/json/3"
+
+        # API-Football (optional - for real-time data)
+        self.rapidapi_key = os.getenv("RAPIDAPI_KEY")
+        self.has_api_football = bool(self.rapidapi_key)
 
     def fetch_kicker_api(self) -> list[NewsArticle]:
         """
@@ -104,6 +111,96 @@ class DataAggregator:
 
         return articles
 
+    def fetch_bundesliga_standings(self) -> str:
+        """
+        Fetch Bundesliga standings from TheSportsDB (FREE TIER).
+
+        Returns:
+            Formatted string with standings table
+        """
+        try:
+            url = f"{self.sports_db_base_url}/lookuptable.php?l=4331&s=2024-2025"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if not data.get("table"):
+                return ""
+
+            # Format standings
+            lines = ["=== BUNDESLIGA TABELLE (Saison 2024/25) ===\n"]
+            for team in data["table"][:10]:  # Top 10 teams
+                pos = team.get("intRank", "?")
+                name = team.get("strTeam", "Unknown")
+                played = team.get("intPlayed", "0")
+                points = team.get("intPoints", "0")
+                gf = team.get("intGoalsFor", "0")
+                ga = team.get("intGoalsAgainst", "0")
+
+                try:
+                    gd = int(gf) - int(ga)
+                except:
+                    gd = 0
+
+                lines.append(
+                    f"{pos:2}. {name:25} | {played:2} Sp. | {points:2} Pkt | {gf}:{ga} ({gd:+d})"
+                )
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            print(f"Error fetching standings: {e}")
+            return ""
+
+    def fetch_recent_results(self) -> list[SportsEvent]:
+        """
+        Fetch recent Bundesliga results from TheSportsDB (FREE TIER).
+
+        Returns:
+            List of recent match events
+        """
+        events = []
+
+        try:
+            url = f"{self.sports_db_base_url}/eventspastleague.php?id=4331"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("events"):
+                for event_data in data["events"][:5]:  # Last 5 matches
+                    home_team = event_data.get("strHomeTeam", "Unknown")
+                    away_team = event_data.get("strAwayTeam", "Unknown")
+                    home_score = event_data.get("intHomeScore", "")
+                    away_score = event_data.get("intAwayScore", "")
+                    date_str = event_data.get("dateEvent", "")
+
+                    # Parse date
+                    timestamp = datetime.now()
+                    if date_str:
+                        try:
+                            timestamp = datetime.strptime(date_str, "%Y-%m-%d")
+                        except:
+                            pass
+
+                    event = SportsEvent(
+                        source=DataSource.SPORTS_API,
+                        event_type="result",
+                        title=f"{home_team} {home_score}:{away_score} {away_team}",
+                        content=f"Bundesliga - Ergebnis",
+                        timestamp=timestamp,
+                        home_team=home_team,
+                        away_team=away_team,
+                        score=f"{home_score}:{away_score}",
+                        league="Bundesliga",
+                    )
+                    events.append(event)
+
+        except Exception as e:
+            print(f"Error fetching recent results: {e}")
+
+        return events
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -162,24 +259,48 @@ class DataAggregator:
         Fetch and aggregate data from all sources.
 
         Returns:
-            AggregatedData object containing all normalized data
+            AggregatedData object containing all normalized data with standings prepended
         """
         print("Fetching data from all sources...")
 
-        # Fetch from all sources
+        # Fetch news
         kicker_api_articles = self.fetch_kicker_api()
         kicker_rss_articles = self.fetch_kicker_rss()
-        sports_events = self.fetch_sports_api()
-
-        # Combine all news articles
         all_articles = kicker_api_articles + kicker_rss_articles
 
-        print(f"Fetched {len(all_articles)} news articles and {len(sports_events)} sports events")
+        # Fetch standings (will be prepended to context)
+        standings_text = self.fetch_bundesliga_standings()
 
-        return AggregatedData(
+        # Fetch sports events
+        upcoming_fixtures = self.fetch_sports_api()
+        recent_results = self.fetch_recent_results()
+        all_events = recent_results + upcoming_fixtures
+
+        print(f"Fetched {len(all_articles)} news articles and {len(all_events)} sports events")
+
+        # Create aggregated data
+        data = AggregatedData(
             news_articles=all_articles,
-            sports_events=sports_events,
+            sports_events=all_events,
         )
+
+        # Prepend standings to context (monkey-patch for this instance)
+        original_context = data.to_context_string()
+        data._enhanced_context = f"{standings_text}\n\n{original_context}" if standings_text else original_context
+
+        return data
+
+
+# Monkey-patch to_context_string to use enhanced context if available
+_original_to_context_string = AggregatedData.to_context_string
+
+def _enhanced_to_context_string(self) -> str:
+    """Use enhanced context (with standings) if available, else original."""
+    if hasattr(self, '_enhanced_context'):
+        return self._enhanced_context
+    return _original_to_context_string(self)
+
+AggregatedData.to_context_string = _enhanced_to_context_string
 
 
 def main():
@@ -193,10 +314,12 @@ def main():
     print(f"Total news articles: {len(data.news_articles)}")
     print(f"Total sports events: {len(data.sports_events)}")
     print("\n" + "="*60)
-    print("SAMPLE DATA FOR LLM CONTEXT")
+    print("SAMPLE DATA FOR LLM CONTEXT (with standings)")
     print("="*60)
-    print(data.to_context_string()[:1000])  # Print first 1000 chars
+    context = data.to_context_string()
+    print(context[:1500])  # Print first 1500 chars
     print("\n... (truncated)")
+    print(f"\nTotal context size: {len(context)} characters")
 
 
 if __name__ == "__main__":

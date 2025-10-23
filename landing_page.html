@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fußball GPT - AI für deutschen Fußball (Beta)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .beta-badge {
+            display: inline-block;
+            background: #fbbf24;
+            color: #78350f;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        .tagline {
+            font-size: 1.25rem;
+            color: #6b7280;
+            margin-bottom: 40px;
+        }
+
+        .features {
+            text-align: left;
+            margin: 40px 0;
+            padding: 30px;
+            background: #f9fafb;
+            border-radius: 12px;
+        }
+
+        .features h2 {
+            font-size: 1.5rem;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 12px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "⚽";
+            position: absolute;
+            left: 0;
+        }
+
+        .demo-placeholder {
+            background: #e5e7eb;
+            border-radius: 12px;
+            padding: 60px 20px;
+            margin: 40px 0;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .signup-form {
+            margin-top: 40px;
+            padding: 40px;
+            background: #f0f4ff;
+            border-radius: 12px;
+        }
+
+        .signup-form h2 {
+            font-size: 1.75rem;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .signup-form p {
+            color: #6b7280;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-group input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group button {
+            padding: 14px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .form-group button:hover {
+            background: #5568d3;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #e5e7eb;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 40px 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .form-group {
+                flex-direction: column;
+            }
+
+            .form-group button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">⚽</div>
+        <h1>Fußball GPT</h1>
+        <div class="beta-badge">BETA</div>
+        <p class="tagline">
+            AI für deutschen Fußball
+        </p>
+
+        <div class="features">
+            <h2>Was Fußball GPT kann</h2>
+            <ul class="feature-list">
+                <li>Aktuelle Bundesliga-Tabelle und Ergebnisse in Echtzeit</li>
+                <li>Neueste Nachrichten von Kicker.de und anderen Quellen</li>
+                <li>Spielberichte und taktische Analysen</li>
+                <li>Antworten auf Deutsch in professionellem Journalismus-Stil</li>
+                <li>Natürliche Konversationen mit Kontext-Verständnis</li>
+                <li>Basiert auf verifizierten Daten, keine Halluzinationen</li>
+            </ul>
+        </div>
+
+        <div class="demo-placeholder">
+            📹 Demo-Video kommt bald
+            <br>
+            <small>Zeigt KSI in Aktion mit echten Bundesliga-Fragen</small>
+        </div>
+
+        <div class="signup-form">
+            <h2>Frühen Zugang sichern</h2>
+            <p>Sei einer der ersten 50 Beta-Tester und hilf uns, KSI zu verbessern.</p>
+
+            <form id="betaSignup" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <input
+                        type="email"
+                        id="email"
+                        placeholder="deine@email.de"
+                        required
+                    >
+                    <button type="submit">Beta-Zugang</button>
+                </div>
+            </form>
+
+            <div id="successMessage" style="display: none; margin-top: 20px; color: #10b981; font-weight: 600;">
+                ✅ Danke! Wir melden uns bei dir.
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>
+                Powered by Kicker.de news • Real-time data from TheSportsDB & API-Football
+                <br>
+                <small style="color: #9ca3af; font-size: 0.75rem; margin-top: 10px; display: block;">
+                    This product is not affiliated with, sponsored by, or endorsed by Deutsche Fußball Liga GmbH or the Bundesliga.
+                    All trademarks are property of their respective owners.
+                </small>
+                <br>
+                <a href="https://github.com/yourusername/fussball-gpt" target="_blank">GitHub</a> •
+                Feedback willkommen
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function handleSignup(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+
+            // For now, just show success message
+            // In production, you'd send this to a backend or email service
+            console.log('Beta signup:', email);
+
+            // Show success message
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('betaSignup').style.display = 'none';
+
+            // Optional: Track signup (add your analytics here)
+            // gtag('event', 'beta_signup', { email: email });
+
+            // Optional: Send to backend
+            // fetch('/api/beta-signup', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ email })
+            // });
+
+            // Optional: Use a service like Mailchimp, ConvertKit, or Google Forms
+            // window.open('https://forms.gle/your-form-id?entry.email=' + encodeURIComponent(email), '_blank');
+        }
+    </script>
+</body>
+</html>
