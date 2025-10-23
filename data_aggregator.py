@@ -8,7 +8,9 @@ Fetches and normalizes data from:
 """
 
 import os
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 import feedparser
 import requests
@@ -17,6 +19,7 @@ from models import (
     AggregatedData,
     DataSource,
     NewsArticle,
+    PlayerStats,
     SportsEvent,
 )
 
@@ -33,6 +36,11 @@ class DataAggregator:
         # API-Football (optional - for real-time data)
         self.rapidapi_key = os.getenv("RAPIDAPI_KEY")
         self.has_api_football = bool(self.rapidapi_key)
+
+        # Cache setup for player stats (6-hour cache to stay within rate limits)
+        self.cache_dir = Path("cache")
+        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_duration = timedelta(hours=6)
 
     def fetch_kicker_api(self) -> list[NewsArticle]:
         """
@@ -201,6 +209,122 @@ class DataAggregator:
 
         return events
 
+    def fetch_player_stats(self, league_id: int = 78, season: str = "2024") -> list[PlayerStats]:
+        """
+        Fetch top player statistics from API-Football.
+
+        Args:
+            league_id: Bundesliga ID = 78
+            season: Season year (2024 for 2024/25 season)
+
+        Returns:
+            List of PlayerStats objects for top performers
+        """
+        if not self.has_api_football:
+            print("API-Football not configured (RAPIDAPI_KEY missing)")
+            return []
+
+        players = []
+
+        try:
+            # API-Football endpoint for player statistics
+            url = "https://api-football-v1.p.rapidapi.com/v3/players/topscorers"
+
+            headers = {
+                "X-RapidAPI-Key": self.rapidapi_key,
+                "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+            }
+
+            params = {
+                "league": league_id,
+                "season": season
+            }
+
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("response"):
+                # Get top 20 players (top scorers)
+                for player_data in data["response"][:20]:
+                    player_info = player_data.get("player", {})
+                    stats = player_data.get("statistics", [{}])[0]
+
+                    player = PlayerStats(
+                        player_name=player_info.get("name", "Unknown"),
+                        team=stats.get("team", {}).get("name", "Unknown"),
+                        position=stats.get("games", {}).get("position", "Unknown"),
+
+                        # Appearance stats
+                        appearances=stats.get("games", {}).get("appearences", 0) or 0,
+                        minutes_played=stats.get("games", {}).get("minutes", 0) or 0,
+
+                        # Performance stats
+                        goals=stats.get("goals", {}).get("total", 0) or 0,
+                        assists=stats.get("goals", {}).get("assists", 0) or 0,
+                        shots_total=stats.get("shots", {}).get("total", 0) or 0,
+                        shots_on_target=stats.get("shots", {}).get("on", 0) or 0,
+
+                        # Disciplinary
+                        yellow_cards=stats.get("cards", {}).get("yellow", 0) or 0,
+                        red_cards=stats.get("cards", {}).get("red", 0) or 0,
+
+                        # Additional
+                        passes_total=stats.get("passes", {}).get("total"),
+                        passes_accurate=stats.get("passes", {}).get("accuracy"),
+                        dribbles_successful=stats.get("dribbles", {}).get("success"),
+
+                        # Goalkeeper (if applicable)
+                        saves=stats.get("goals", {}).get("saves"),
+
+                        season=f"{season}-{int(season)+1}",
+                        league="Bundesliga"
+                    )
+
+                    players.append(player)
+
+            print(f"Fetched {len(players)} player stats from API-Football")
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                print("⚠️  API-Football: Not subscribed. Subscribe at https://rapidapi.com/api-sports/api/api-football")
+                print("   Select MEGA plan (100 req/day, FREE) to enable player stats")
+            else:
+                print(f"HTTP Error fetching player stats: {e}")
+        except Exception as e:
+            print(f"Error fetching player stats: {e}")
+
+        return players
+
+    def fetch_player_stats_cached(self) -> list[PlayerStats]:
+        """Fetch player stats with caching to avoid rate limits."""
+        cache_file = self.cache_dir / "player_stats.json"
+
+        # Check cache (6 hour duration)
+        if cache_file.exists():
+            cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if cache_age < self.cache_duration:
+                print(f"Using cached player stats ({cache_age.seconds // 3600}h old)")
+                try:
+                    with open(cache_file) as f:
+                        cached_data = json.load(f)
+                        return [PlayerStats(**p) for p in cached_data]
+                except Exception as e:
+                    print(f"Error loading cache: {e}")
+
+        # Fetch fresh data
+        player_stats = self.fetch_player_stats()
+
+        # Save to cache
+        if player_stats:
+            try:
+                with open(cache_file, 'w') as f:
+                    json.dump([p.dict() for p in player_stats], f)
+            except Exception as e:
+                print(f"Error saving cache: {e}")
+
+        return player_stats
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -276,12 +400,16 @@ class DataAggregator:
         recent_results = self.fetch_recent_results()
         all_events = recent_results + upcoming_fixtures
 
-        print(f"Fetched {len(all_articles)} news articles and {len(all_events)} sports events")
+        # Fetch player stats (cached to stay within rate limits)
+        player_stats = self.fetch_player_stats_cached() if self.has_api_football else []
+
+        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats")
 
         # Create aggregated data
         data = AggregatedData(
             news_articles=all_articles,
             sports_events=all_events,
+            player_stats=player_stats,
         )
 
         # Prepend standings to context (monkey-patch for this instance)

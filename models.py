@@ -53,10 +53,52 @@ class SportsEvent(BaseModel):
         }
 
 
+class PlayerStats(BaseModel):
+    """Player statistics from API-Football."""
+    source: DataSource = DataSource.SPORTS_API
+    player_name: str
+    team: str
+    position: str
+
+    # Appearance stats
+    appearances: int = 0
+    minutes_played: int = 0
+
+    # Performance stats
+    goals: int = 0
+    assists: int = 0
+    shots_total: int = 0
+    shots_on_target: int = 0
+
+    # Disciplinary
+    yellow_cards: int = 0
+    red_cards: int = 0
+
+    # Additional (optional)
+    passes_total: Optional[int] = None
+    passes_accurate: Optional[int] = None
+    dribbles_successful: Optional[int] = None
+
+    # Goalkeeper (if applicable)
+    saves: Optional[int] = None
+    goals_conceded: Optional[int] = None
+    clean_sheets: Optional[int] = None
+
+    # Metadata
+    season: str = "2024-2025"
+    league: str = "Bundesliga"
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
 class AggregatedData(BaseModel):
     """Container for all aggregated data to pass to LLM."""
     news_articles: list[NewsArticle] = Field(default_factory=list)
     sports_events: list[SportsEvent] = Field(default_factory=list)
+    player_stats: list[PlayerStats] = Field(default_factory=list)
     aggregation_timestamp: datetime = Field(default_factory=datetime.now)
 
     def to_context_string(self) -> str:
@@ -80,6 +122,23 @@ class AggregatedData(BaseModel):
                 if event.score:
                     lines.append(f"Score: {event.score}")
                 lines.append("")
+
+        if self.player_stats:
+            lines.append("=== TOP PLAYER STATISTICS (Bundesliga 2024/25) ===")
+
+            # Group by category for better readability
+            top_scorers = sorted(self.player_stats, key=lambda p: p.goals, reverse=True)[:10]
+            top_assists = sorted(self.player_stats, key=lambda p: p.assists, reverse=True)[:10]
+
+            lines.append("\nTop Scorers:")
+            for i, player in enumerate(top_scorers, 1):
+                lines.append(f"{i}. {player.player_name} ({player.team}) - {player.goals} Tore, {player.assists} Vorlagen, {player.minutes_played} Min")
+
+            lines.append("\nTop Assists:")
+            for i, player in enumerate(top_assists, 1):
+                lines.append(f"{i}. {player.player_name} ({player.team}) - {player.assists} Vorlagen, {player.goals} Tore, {player.appearances} Spiele")
+
+            lines.append("")
 
         return "\n".join(lines)
 
