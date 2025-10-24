@@ -577,6 +577,185 @@ class DataAggregator:
 
         return odds_data
 
+    def fetch_head_to_head(self, team_id1: str, team_id2: str, limit: int = 10) -> dict:
+        """
+        Fetch head-to-head record between two teams.
+
+        Args:
+            team_id1: First team ID
+            team_id2: Second team ID
+            limit: Number of recent matches to analyze (default 10)
+
+        Returns:
+            Dict with H2H record like:
+            {"team1_name": "Bayern", "team2_name": "Dortmund",
+             "team1_wins": 7, "draws": 2, "team2_wins": 1, "matches": [...]}
+        """
+        try:
+            # Fetch recent events for team1
+            url = f"{self.sports_db_base_url}/eventslast.php?id={team_id1}"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if not data.get("results"):
+                return {}
+
+            # Filter for matches against team2
+            h2h_matches = []
+            for match in data["results"]:
+                home_id = match.get("idHomeTeam")
+                away_id = match.get("idAwayTeam")
+
+                # Check if this match involved both teams
+                if (home_id == team_id1 and away_id == team_id2) or \
+                   (home_id == team_id2 and away_id == team_id1):
+                    h2h_matches.append(match)
+
+            # If we don't have enough matches, try team2's history
+            if len(h2h_matches) < limit:
+                url2 = f"{self.sports_db_base_url}/eventslast.php?id={team_id2}"
+                response2 = requests.get(url2, timeout=10)
+                response2.raise_for_status()
+                data2 = response2.json()
+
+                if data2.get("results"):
+                    for match in data2["results"]:
+                        home_id = match.get("idHomeTeam")
+                        away_id = match.get("idAwayTeam")
+
+                        # Avoid duplicates
+                        match_id = match.get("idEvent")
+                        if match_id not in [m.get("idEvent") for m in h2h_matches]:
+                            if (home_id == team_id1 and away_id == team_id2) or \
+                               (home_id == team_id2 and away_id == team_id1):
+                                h2h_matches.append(match)
+
+            # Limit to most recent matches
+            h2h_matches = h2h_matches[:limit]
+
+            if not h2h_matches:
+                return {}
+
+            # Calculate record
+            team1_wins = 0
+            team2_wins = 0
+            draws = 0
+            team1_name = ""
+            team2_name = ""
+
+            for match in h2h_matches:
+                home_id = match.get("idHomeTeam")
+                away_id = match.get("idAwayTeam")
+                home_score = match.get("intHomeScore")
+                away_score = match.get("intAwayScore")
+
+                # Skip if scores are missing
+                if home_score is None or away_score is None:
+                    continue
+
+                home_score = int(home_score)
+                away_score = int(away_score)
+
+                # Get team names
+                if not team1_name:
+                    team1_name = match.get("strHomeTeam") if home_id == team_id1 else match.get("strAwayTeam")
+                if not team2_name:
+                    team2_name = match.get("strAwayTeam") if home_id == team_id1 else match.get("strHomeTeam")
+
+                # Determine result
+                if home_score == away_score:
+                    draws += 1
+                elif (home_id == team_id1 and home_score > away_score) or \
+                     (away_id == team_id1 and away_score > home_score):
+                    team1_wins += 1
+                else:
+                    team2_wins += 1
+
+            return {
+                "team1_name": team1_name,
+                "team2_name": team2_name,
+                "team1_wins": team1_wins,
+                "draws": draws,
+                "team2_wins": team2_wins,
+                "total_matches": len([m for m in h2h_matches if m.get("intHomeScore") is not None]),
+                "matches": h2h_matches
+            }
+
+        except Exception as e:
+            print(f"Error fetching H2H for teams {team_id1} vs {team_id2}: {e}")
+            return {}
+
+    def fetch_h2h_for_upcoming_fixtures(self) -> dict[str, dict]:
+        """
+        Fetch H2H records for upcoming Bundesliga fixtures.
+
+        Returns:
+            Dict mapping fixture keys to H2H records
+        """
+        h2h_data = {}
+
+        try:
+            # Get upcoming fixtures to know which H2H to fetch
+            url = f"{self.sports_db_base_url}/eventsnextleague.php?id=4331"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("events"):
+                # Get H2H for next 5 fixtures
+                for event in data["events"][:5]:
+                    home_team = event.get("strHomeTeam")
+                    away_team = event.get("strAwayTeam")
+                    home_id = event.get("idHomeTeam")
+                    away_id = event.get("idAwayTeam")
+
+                    if home_id and away_id:
+                        fixture_key = f"{home_team}_vs_{away_team}"
+                        h2h = self.fetch_head_to_head(home_id, away_id)
+
+                        if h2h:
+                            h2h_data[fixture_key] = h2h
+
+            print(f"Fetched H2H for {len(h2h_data)} upcoming fixtures")
+
+        except Exception as e:
+            print(f"Error fetching H2H for fixtures: {e}")
+
+        return h2h_data
+
+    def fetch_h2h_cached(self) -> dict[str, dict]:
+        """Fetch H2H records with caching (24-hour cache)."""
+        cache_file = self.cache_dir / "head_to_head.json"
+
+        # Check cache
+        if cache_file.exists():
+            cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if cache_age < self.odds_cache_duration:
+                print(f"Using cached H2H records ({cache_age.seconds // 3600}h old)")
+                try:
+                    with open(cache_file) as f:
+                        return json.load(f)
+                except Exception as e:
+                    print(f"Error loading cache: {e}")
+
+        # Fetch fresh data
+        h2h_data = self.fetch_h2h_for_upcoming_fixtures()
+
+        # Save to cache
+        if h2h_data:
+            try:
+                with open(cache_file, 'w') as f:
+                    # Remove 'matches' field to reduce cache size
+                    h2h_summary = {}
+                    for key, value in h2h_data.items():
+                        h2h_summary[key] = {k: v for k, v in value.items() if k != "matches"}
+                    json.dump(h2h_summary, f)
+            except Exception as e:
+                print(f"Error saving cache: {e}")
+
+        return h2h_data
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -661,7 +840,10 @@ class DataAggregator:
         # Fetch betting odds (cached, 24 hours)
         betting_odds = self.fetch_betting_odds_cached() if self.has_odds_api else {}
 
-        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms, {len(betting_odds)} odds")
+        # Fetch head-to-head records for upcoming fixtures (cached, 24 hours)
+        h2h_records = self.fetch_h2h_cached()
+
+        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms, {len(betting_odds)} odds, {len(h2h_records)} H2H")
 
         # Create aggregated data
         data = AggregatedData(
@@ -670,8 +852,9 @@ class DataAggregator:
             player_stats=player_stats,
         )
 
-        # Prepend standings + form guide + odds to context (monkey-patch for this instance)
+        # Prepend standings + form guide + H2H + odds to context (monkey-patch for this instance)
         form_guide_text = self._format_form_guide(team_forms)
+        h2h_text = self._format_h2h_records(h2h_records)
         betting_odds_text = self._format_betting_odds(betting_odds)
         original_context = data.to_context_string()
 
@@ -680,6 +863,8 @@ class DataAggregator:
             enhanced_parts.append(standings_text)
         if form_guide_text:
             enhanced_parts.append(form_guide_text)
+        if h2h_text:
+            enhanced_parts.append(h2h_text)
         if betting_odds_text:
             enhanced_parts.append(betting_odds_text)
         enhanced_parts.append(original_context)
@@ -703,6 +888,33 @@ class DataAggregator:
             form_str = form_data["form"]
             points = form_data["points"]
             lines.append(f"{team_name}: {form_str} ({points} Punkte aus letzten 5 Spielen)")
+
+        return "\n".join(lines)
+
+    def _format_h2h_records(self, h2h_records: dict[str, dict]) -> str:
+        """Format head-to-head records for LLM context."""
+        if not h2h_records:
+            return ""
+
+        lines = ["=== HEAD-TO-HEAD RECORDS (Upcoming Fixtures) ==="]
+        lines.append("")
+
+        for fixture_key, h2h_data in h2h_records.items():
+            team1 = h2h_data.get("team1_name", "Unknown")
+            team2 = h2h_data.get("team2_name", "Unknown")
+            team1_wins = h2h_data.get("team1_wins", 0)
+            draws = h2h_data.get("draws", 0)
+            team2_wins = h2h_data.get("team2_wins", 0)
+            total = h2h_data.get("total_matches", 0)
+
+            if total > 0:
+                lines.append(
+                    f"{team1} vs {team2}: {team1_wins}S-{draws}U-{team2_wins}N "
+                    f"(letzte {total} Spiele, {team1} Perspektive)"
+                )
+
+        if len(lines) == 2:  # Only header, no data
+            return ""
 
         return "\n".join(lines)
 
