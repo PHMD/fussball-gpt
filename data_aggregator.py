@@ -326,6 +326,130 @@ class DataAggregator:
 
         return player_stats
 
+    def fetch_team_form(self) -> dict[str, dict]:
+        """
+        Fetch form guide (last 5 matches) for Bundesliga teams.
+
+        Returns:
+            Dict mapping team names to form data with format like:
+            {"Bayern München": {"form": "W-W-D-W-L", "points": 10, "matches": [...]}}
+        """
+        team_forms = {}
+
+        try:
+            # First, get standings to get team IDs
+            url = f"{self.sports_db_base_url}/lookuptable.php?l=4331&s=2024-2025"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if not data.get("table"):
+                return {}
+
+            # Get top 10 teams (most relevant for users)
+            for team_data in data["table"][:10]:
+                team_name = team_data.get("strTeam")
+                team_id = team_data.get("idTeam")
+
+                if not team_id or not team_name:
+                    continue
+
+                # Fetch last 5 events for this team
+                try:
+                    events_url = f"{self.sports_db_base_url}/eventslast.php?id={team_id}"
+                    events_response = requests.get(events_url, timeout=10)
+                    events_response.raise_for_status()
+                    events_data = events_response.json()
+
+                    if events_data.get("results"):
+                        # Process last 5 matches
+                        matches = []
+                        form_letters = []
+                        points = 0
+
+                        for match in events_data["results"][:5]:
+                            home_team = match.get("strHomeTeam")
+                            away_team = match.get("strAwayTeam")
+                            home_score = match.get("intHomeScore")
+                            away_score = match.get("intAwayScore")
+
+                            # Skip if scores are missing
+                            if home_score is None or away_score is None:
+                                continue
+
+                            home_score = int(home_score)
+                            away_score = int(away_score)
+
+                            # Determine result from team's perspective
+                            if home_team == team_name:
+                                if home_score > away_score:
+                                    form_letters.append("W")
+                                    points += 3
+                                elif home_score == away_score:
+                                    form_letters.append("D")
+                                    points += 1
+                                else:
+                                    form_letters.append("L")
+                            elif away_team == team_name:
+                                if away_score > home_score:
+                                    form_letters.append("W")
+                                    points += 3
+                                elif away_score == home_score:
+                                    form_letters.append("D")
+                                    points += 1
+                                else:
+                                    form_letters.append("L")
+
+                            matches.append({
+                                "home": home_team,
+                                "away": away_team,
+                                "score": f"{home_score}:{away_score}"
+                            })
+
+                        if form_letters:
+                            team_forms[team_name] = {
+                                "form": "-".join(form_letters),
+                                "points": points,
+                                "matches": matches
+                            }
+
+                except Exception as e:
+                    print(f"Error fetching form for {team_name}: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"Error fetching team forms: {e}")
+
+        return team_forms
+
+    def fetch_team_form_cached(self) -> dict[str, dict]:
+        """Fetch team form with caching (6-hour cache)."""
+        cache_file = self.cache_dir / "team_form.json"
+
+        # Check cache
+        if cache_file.exists():
+            cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if cache_age < self.cache_duration:
+                print(f"Using cached team form ({cache_age.seconds // 3600}h old)")
+                try:
+                    with open(cache_file) as f:
+                        return json.load(f)
+                except Exception as e:
+                    print(f"Error loading cache: {e}")
+
+        # Fetch fresh data
+        team_forms = self.fetch_team_form()
+
+        # Save to cache
+        if team_forms:
+            try:
+                with open(cache_file, 'w') as f:
+                    json.dump(team_forms, f)
+            except Exception as e:
+                print(f"Error saving cache: {e}")
+
+        return team_forms
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -404,7 +528,10 @@ class DataAggregator:
         # Fetch player stats (cached to stay within rate limits)
         player_stats = self.fetch_player_stats_cached() if self.has_api_football else []
 
-        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats")
+        # Fetch team form guide (cached, 6 hours)
+        team_forms = self.fetch_team_form_cached()
+
+        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms")
 
         # Create aggregated data
         data = AggregatedData(
@@ -413,11 +540,38 @@ class DataAggregator:
             player_stats=player_stats,
         )
 
-        # Prepend standings to context (monkey-patch for this instance)
+        # Prepend standings + form guide to context (monkey-patch for this instance)
+        form_guide_text = self._format_form_guide(team_forms)
         original_context = data.to_context_string()
-        data._enhanced_context = f"{standings_text}\n\n{original_context}" if standings_text else original_context
+
+        enhanced_parts = []
+        if standings_text:
+            enhanced_parts.append(standings_text)
+        if form_guide_text:
+            enhanced_parts.append(form_guide_text)
+        enhanced_parts.append(original_context)
+
+        data._enhanced_context = "\n\n".join(enhanced_parts)
 
         return data
+
+    def _format_form_guide(self, team_forms: dict[str, dict]) -> str:
+        """Format team form data for LLM context."""
+        if not team_forms:
+            return ""
+
+        lines = ["=== TEAM FORM GUIDE (Last 5 Matches) ==="]
+        lines.append("")
+
+        # Sort by current form points (most in-form teams first)
+        sorted_teams = sorted(team_forms.items(), key=lambda x: x[1]["points"], reverse=True)
+
+        for team_name, form_data in sorted_teams:
+            form_str = form_data["form"]
+            points = form_data["points"]
+            lines.append(f"{team_name}: {form_str} ({points} Punkte aus letzten 5 Spielen)")
+
+        return "\n".join(lines)
 
 
 # Monkey-patch to_context_string to use enhanced context if available
