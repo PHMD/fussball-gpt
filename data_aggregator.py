@@ -756,6 +756,104 @@ class DataAggregator:
 
         return h2h_data
 
+    def fetch_injuries(self, league_id: int = 78, season: str = "2025") -> dict[str, list]:
+        """
+        Fetch injury/suspension data for Bundesliga from API-Football.
+
+        Args:
+            league_id: Bundesliga ID = 78
+            season: Season year (2025 = 2024/25 current season)
+
+        Returns:
+            Dict mapping team names to lists of injured/suspended players
+        """
+        if not self.has_api_football:
+            print("API-Football not configured for injuries (RAPIDAPI_KEY missing)")
+            return {}
+
+        injuries_by_team = {}
+
+        try:
+            # API-Football injuries endpoint
+            url = f"{self.api_football_base_url}/injuries"
+
+            headers = {
+                "x-apisports-key": self.api_football_key
+            }
+
+            params = {
+                "league": league_id,
+                "season": season
+            }
+
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("response"):
+                # Group injuries by team
+                for injury_data in data["response"]:
+                    player = injury_data.get("player", {})
+                    team = injury_data.get("team", {})
+                    fixture = injury_data.get("fixture", {})
+
+                    player_name = player.get("name", "Unknown")
+                    team_name = team.get("name", "Unknown")
+                    injury_type = player.get("type", "Unknown")  # Injury or Missing Roster
+                    injury_reason = player.get("reason", "Unknown")
+
+                    # Add to team's injury list
+                    if team_name not in injuries_by_team:
+                        injuries_by_team[team_name] = []
+
+                    injuries_by_team[team_name].append({
+                        "player": player_name,
+                        "type": injury_type,
+                        "reason": injury_reason
+                    })
+
+            print(f"Fetched injury data for {len(injuries_by_team)} teams")
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                print("⚠️  API-Football: Injuries endpoint not available on current plan")
+            elif e.response.status_code == 404:
+                print("⚠️  API-Football: No injury data for current season/league")
+            else:
+                print(f"HTTP Error fetching injuries: {e}")
+        except Exception as e:
+            print(f"Error fetching injuries: {e}")
+
+        return injuries_by_team
+
+    def fetch_injuries_cached(self) -> dict[str, list]:
+        """Fetch injuries with caching (6-hour cache)."""
+        cache_file = self.cache_dir / "injuries.json"
+
+        # Check cache
+        if cache_file.exists():
+            cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if cache_age < self.cache_duration:
+                print(f"Using cached injury data ({cache_age.seconds // 3600}h old)")
+                try:
+                    with open(cache_file) as f:
+                        return json.load(f)
+                except Exception as e:
+                    print(f"Error loading cache: {e}")
+
+        # Fetch fresh data
+        injuries = self.fetch_injuries()
+
+        # Save to cache
+        if injuries:
+            try:
+                with open(cache_file, 'w') as f:
+                    json.dump(injuries, f)
+            except Exception as e:
+                print(f"Error saving cache: {e}")
+
+        return injuries
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -843,7 +941,10 @@ class DataAggregator:
         # Fetch head-to-head records for upcoming fixtures (cached, 24 hours)
         h2h_records = self.fetch_h2h_cached()
 
-        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms, {len(betting_odds)} odds, {len(h2h_records)} H2H")
+        # Fetch injury/suspension data (cached, 6 hours)
+        injuries = self.fetch_injuries_cached() if self.has_api_football else {}
+
+        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms, {len(betting_odds)} odds, {len(h2h_records)} H2H, {len(injuries)} teams with injuries")
 
         # Create aggregated data
         data = AggregatedData(
@@ -852,8 +953,9 @@ class DataAggregator:
             player_stats=player_stats,
         )
 
-        # Prepend standings + form guide + H2H + odds to context (monkey-patch for this instance)
+        # Prepend standings + form guide + injuries + H2H + odds to context (monkey-patch for this instance)
         form_guide_text = self._format_form_guide(team_forms)
+        injuries_text = self._format_injuries(injuries)
         h2h_text = self._format_h2h_records(h2h_records)
         betting_odds_text = self._format_betting_odds(betting_odds)
         original_context = data.to_context_string()
@@ -863,6 +965,8 @@ class DataAggregator:
             enhanced_parts.append(standings_text)
         if form_guide_text:
             enhanced_parts.append(form_guide_text)
+        if injuries_text:
+            enhanced_parts.append(injuries_text)
         if h2h_text:
             enhanced_parts.append(h2h_text)
         if betting_odds_text:
@@ -888,6 +992,44 @@ class DataAggregator:
             form_str = form_data["form"]
             points = form_data["points"]
             lines.append(f"{team_name}: {form_str} ({points} Punkte aus letzten 5 Spielen)")
+
+        return "\n".join(lines)
+
+    def _format_injuries(self, injuries: dict[str, list]) -> str:
+        """Format injury/suspension data for LLM context."""
+        if not injuries:
+            return ""
+
+        lines = ["=== INJURIES & SUSPENSIONS ==="]
+        lines.append("")
+
+        # Sort teams alphabetically
+        sorted_teams = sorted(injuries.items())
+
+        for team_name, injury_list in sorted_teams:
+            if not injury_list:
+                continue
+
+            # Group by type (Injury vs Missing Roster/Suspension)
+            injuries_only = [i for i in injury_list if i.get("type") == "Injury"]
+            other = [i for i in injury_list if i.get("type") != "Injury"]
+
+            players = []
+            for inj in injuries_only:
+                player = inj.get("player", "Unknown")
+                reason = inj.get("reason", "Unknown")
+                players.append(f"{player} ({reason})")
+
+            for inj in other:
+                player = inj.get("player", "Unknown")
+                reason = inj.get("reason", "Unknown")
+                players.append(f"{player} ({reason})")
+
+            if players:
+                lines.append(f"{team_name}: {', '.join(players[:5])}")  # Limit to 5 per team
+
+        if len(lines) == 2:  # Only header, no data
+            return ""
 
         return "\n".join(lines)
 
