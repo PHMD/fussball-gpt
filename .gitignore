@@ -26,3 +26,4 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+.fussballgpt_config.json
