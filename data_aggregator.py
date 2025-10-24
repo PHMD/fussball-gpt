@@ -212,17 +212,16 @@ class DataAggregator:
 
         return events
 
-    def fetch_player_stats(self, league_id: int = 78, season: str = "2023") -> list[PlayerStats]:
+    def fetch_player_stats(self, league_id: int = 78, season: str = "2025") -> list[PlayerStats]:
         """
-        Fetch top player statistics from API-Football (direct API, free tier).
+        Fetch top player statistics from API-Football (direct API, paid tier).
 
         Args:
             league_id: Bundesliga ID = 78
-            season: Season year (2023 = 2022/23 season, free tier limit)
-                   Note: Free tier only has 2021-2023 data
+            season: Season year (2025 = 2024/25 current season)
 
         Returns:
-            List of PlayerStats objects for top performers (last completed season)
+            List of PlayerStats objects for top performers (current season)
         """
         if not self.has_api_football:
             print("API-Football not configured (RAPIDAPI_KEY missing)")
