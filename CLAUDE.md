@@ -1,18 +1,96 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-**Fußball GPT** (formerly KSI Prototype) - An AI-powered Bundesliga assistant that aggregates real-time sports data and provides intelligent analysis through natural language queries.
+**Fußball GPT** (formerly KSI Prototype) - A German football intelligence assistant that aggregates real-time Bundesliga data and provides AI-powered analysis for casual fans, expert analysts, betting enthusiasts, and fantasy players.
 
-**Current Status:** Beta-ready (9.1/10 quality)
-**Architecture:** Three-layer system (Data Aggregation → AI Processing → Interface)
-**Target Users:** Casual fans, expert analysts, betting enthusiasts, fantasy players
+**Current Status:** Beta-ready (9.1/10 quality) with all quick wins implemented
 
----
+**Architecture Pattern:** Three-layer system (Data Aggregation → AI Processing → Interface)
 
-## Quick Start
+**Next Phase:** Web frontend with Next.js + shadcn/ui components
+
+## Current Implementation Status (October 2025)
+
+### Completed Features (Backend Ready)
+
+**Issue #1:** ✅ Current season player stats (2024/25)
+- API-Football Pro tier ($19/month)
+- Top 20 scorers with goals, assists, minutes played
+- 6-hour caching
+
+**Issue #2:** ✅ User onboarding & personalization
+- Language selection (German/English)
+- Detail levels (Quick/Balanced/Detailed)
+- User profile persistence (`.fussballgpt_config.json`)
+
+**Issue #5:** ✅ Team form guide (last 5 matches)
+- W-D-L format with points from last 5 games
+- TheSportsDB (FREE)
+- 6-hour caching
+
+**Issue #6:** ✅ Head-to-head records
+- Last 10 H2H matches for upcoming fixtures
+- TheSportsDB (FREE)
+- 24-hour caching
+- Seasonal feature (active during season)
+
+**Issue #7:** ✅ Injury & suspension data
+- Real-time injury data for 18+ Bundesliga teams
+- Detailed diagnoses (e.g., "Metatarsal fracture")
+- API-Football Pro tier (included)
+- 6-hour caching
+
+**Issue #8:** ✅ Betting odds integration
+- Pre-match odds for upcoming fixtures
+- The Odds API (FREE tier - 500 req/month)
+- European decimal format
+- 24-hour caching
+- Legal disclaimer included
+
+### Data Sources
+
+**Active APIs:**
+1. **TheSportsDB** (FREE) - Standings, fixtures, results, form, H2H
+2. **API-Football** (Pro $19/mo) - Player stats, injuries
+3. **The Odds API** (FREE 500 req/mo) - Betting odds
+4. **Kicker RSS** (FREE) - News articles
+
+**Caching Strategy:**
+- Player stats: 6 hours
+- Team form: 6 hours
+- Injuries: 6 hours
+- H2H records: 24 hours
+- Betting odds: 24 hours
+
+### Quality Scores (Persona-Based)
+
+**Current Beta Quality: 9.1/10 average**
+
+- Casual Fan: 9/10 (Quick mode optimized)
+- Expert Analyst: 9-9.5/10 (Form + H2H + tactical depth)
+- Betting Enthusiast: 9.5-10/10 (Odds + form + injuries)
+- Fantasy Player: 9/10 (Player stats + injuries)
+
+### Tech Stack
+
+**Backend:**
+- Python 3.x
+- Pydantic for data models
+- Requests for API calls
+- Anthropic Claude Sonnet 4.5 (primary LLM)
+- JSON-based caching
+
+**Frontend (Next Phase):**
+- Next.js 14+ (App Router)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- Vercel deployment
+
+## Development Commands
 
 ### Setup
 ```bash
@@ -22,368 +100,245 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
 
-# Run onboarding (sets language + detail preferences)
+### Running the Backend
+
+**Data Aggregation Test:**
+```bash
+source venv/bin/activate
+python data_aggregator.py
+```
+
+**Feature-Specific Tests:**
+```bash
+# Test form guide integration
+python test_form_guide.py
+
+# Test H2H records
+python test_h2h.py
+
+# Test betting odds (requires ODDS_API_KEY)
+python test_betting_odds.py
+
+# Test user config integration
+python test_user_config_integration.py
+
+# Test language/detail levels
+python test_language_detail_levels.py
+```
+
+**User Onboarding:**
+```bash
+# Interactive setup for language & detail preferences
 python onboarding.py
 ```
 
-### Running the CLI
-
-**Production (Recommended):**
+### Testing
 ```bash
-python ksi_agent.py
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_data_aggregator.py
+
+# Run with coverage
+pytest --cov=. --cov-report=html
 ```
 
-**Required:** `ANTHROPIC_API_KEY` in `.env`
+## Core Architecture
 
-### Testing Individual Features
-```bash
-python data_aggregator.py          # Test all data sources
-python test_form_guide.py          # Test form guide + LLM
-python test_betting_odds.py        # Test odds API (requires ODDS_API_KEY)
-python test_h2h.py                 # Test head-to-head records
-```
+### Current Backend (Production-Ready)
 
----
+**1. `data_aggregator.py`** - Core data pipeline
+- Fetches from 4 data sources (TheSportsDB, API-Football, The Odds API, Kicker RSS)
+- Normalizes to Pydantic models (`models.py`)
+- Comprehensive caching (6-24 hour TTL)
+- Methods:
+  - `fetch_bundesliga_standings()` - League table
+  - `fetch_team_form_cached()` - Last 5 matches per team
+  - `fetch_player_stats_cached()` - Top 20 scorers (current season)
+  - `fetch_injuries_cached()` - Injury/suspension data
+  - `fetch_h2h_cached()` - Head-to-head records
+  - `fetch_betting_odds_cached()` - Pre-match odds
+  - `aggregate_all()` - Main orchestration method
 
-## Current State (October 2025)
+**2. `models.py`** - Data schemas
+- `NewsArticle` - Kicker RSS feed items
+- `SportsEvent` - Fixtures, results
+- `PlayerStats` - Individual player performance
+- `AggregatedData` - Container for all data with `to_context_string()` method
 
-### ✅ Completed Features
+**3. `user_config.py`** - User preferences
+- `DetailLevel` enum (Quick/Balanced/Detailed)
+- `Language` enum (German/English)
+- `UserProfile` model with persistence
+- `UserConfigManager` - Loads/saves user config
+- `get_system_prompt_modifier()` - Dynamic prompt generation
 
-**Phase 1: Core Backend (Complete)**
-- ✅ Issue #1: Current season player statistics (API-Football Pro tier)
-- ✅ Issue #2: User onboarding (language: DE/EN, detail levels: Quick/Balanced/Detailed)
-- ✅ Issue #5: Team form guide (last 5 matches, W-D-L format)
-- ✅ Issue #6: Head-to-head records (last 10 matches between teams)
-- ✅ Issue #7: Injury & suspension data (18+ Bundesliga teams)
-- ✅ Issue #8: Betting odds integration (The Odds API)
-
-**Phase 2: Quality & Optimization (Complete)**
-- ✅ Bilingual support (German/English) via system prompts
-- ✅ User preference management (stored in `.fussballgpt_config.json`)
-- ✅ Comprehensive caching (6h for stats/form/injuries, 24h for odds/H2H)
-- ✅ Persona testing (Casual Fan, Expert Analyst, Betting Enthusiast, Fantasy Player)
-
-### 🚧 Next Phase: Frontend (Starting)
-
-**Phase 3: Web Interface**
-- Web UI with Next.js (TypeScript + Tailwind + shadcn/ui)
-- Responsive design for mobile/desktop
-- Real-time query interface
-- User preference management UI
-- Match cards with odds, form, injuries
-- Component planning with shadcn agent
-
----
-
-## Data Sources & APIs
-
-### Active Integrations
-
-**1. TheSportsDB (FREE)**
-- Standings, fixtures, results
-- Team form (last 5 matches)
-- Head-to-head records
-- Rate limit: 30 req/min
-- Cache: 6 hours (form), 24 hours (H2H)
-
-**2. API-Football (Pro tier $19/month)**
-- Current season player statistics (2024/25 Bundesliga)
-- Injury & suspension data
-- Rate limit: Generous on Pro tier
-- Cache: 6 hours
-
-**3. The Odds API (FREE tier 500 req/month)**
-- Pre-match betting odds (decimal format)
-- European bookmakers
-- Rate limit: 500 req/month
-- Cache: 24 hours
-
-**4. Kicker RSS (FREE)**
-- German football news
-- Latest articles and updates
-- No rate limit
-
----
-
-## Architecture
-
-### Backend Structure
-
-**Core Files:**
-```
-data_aggregator.py      # Data ingestion from all APIs
-models.py              # Pydantic models (NewsArticle, SportsEvent, PlayerStats)
-user_config.py         # User preference management
-onboarding.py          # Interactive setup flow
-ksi_agent.py          # Main CLI with Claude Agent SDK
-```
-
-**Configuration:**
-```
-.env                   # API keys (gitignored)
-.fussballgpt_config.json  # User preferences (gitignored)
-```
-
-**Caching:**
-```
-cache/
-├── player_stats.json      # 6-hour TTL
-├── team_form.json         # 6-hour TTL
-├── injuries.json          # 6-hour TTL
-├── betting_odds.json      # 24-hour TTL
-└── head_to_head.json      # 24-hour TTL
-```
+**4. `onboarding.py`** - Interactive setup
+- Bilingual onboarding flow
+- Saves preferences to `.fussballgpt_config.json`
 
 ### Data Flow
 
 ```
-User Query (German/English, Quick/Balanced/Detailed)
+User Query
     ↓
-data_aggregator.aggregate_all()
+User Config (language, detail level)
     ↓
-Check cache (TTL-based)
+Data Aggregation (cached data sources)
     ↓
-Fetch from APIs (if cache expired)
-    ├─ TheSportsDB: standings, form, H2H
-    ├─ API-Football: player stats, injuries
-    ├─ The Odds API: betting odds
-    └─ Kicker RSS: news
+LLM Context Builder (system prompt + data + user query)
     ↓
-Normalize to Pydantic models
+Anthropic Claude Sonnet 4.5
     ↓
-Build LLM context (standings + form + injuries + H2H + odds + news)
-    ↓
-Apply user preferences (language + detail level)
-    ↓
-Send to Claude with system prompt
-    ↓
-Stream response to user
+Formatted Response (German/English, Quick/Balanced/Detailed)
 ```
 
-### Caching Strategy
+### Caching Architecture
 
-**Why caching is critical:**
-1. **API rate limits:** Free tier APIs have strict limits (30-500 req/day or month)
-2. **Cost management:** Paid API (API-Football) costs $19/month - cache reduces calls by 95%
-3. **Performance:** Sub-second responses from cache vs 5-10 seconds from APIs
-4. **Graceful degradation:** System works even when APIs hit rate limits
+**Why:** API rate limits + performance + cost savings
 
-**Cache durations:**
-- **6 hours:** Data that changes with matches (stats, form, injuries)
-- **24 hours:** Data that's stable (odds, H2H history)
+**Implementation:**
+- Cache directory: `cache/`
+- Files: JSON format with timestamp
+- TTL check: Compare file mtime vs cache_duration
+- Graceful degradation: Use cache if API fails
 
----
+**Example:**
+```python
+def fetch_X_cached(self):
+    if cache_valid():
+        return cached_data
+    fresh_data = fetch_X()
+    save_to_cache(fresh_data)
+    return fresh_data
+```
 
-## User Preferences
+## Key Technical Decisions
 
-### Language Support
-- **German (default):** Native language for Bundesliga content
-- **English:** International audience
-
-**Implementation:** System prompt changes, not model retraining
-
-### Detail Levels
-
-**Quick (1-2 sentences):**
-- Casual fans who want headlines
-- Example: "Bayern führt mit 82 Punkten, 13 vor Leverkusen."
-
-**Balanced (2-3 paragraphs):** [DEFAULT]
-- Standard journalistic style
-- Facts + context + occasional tactical insights
-
-**Detailed (3-5+ paragraphs):**
-- Expert analysts
-- Tactical depth, statistical evidence, comparisons
-
----
+**LLM Provider:** OpenAI GPT-4 or Anthropic Claude (configure via environment variable)
+**Data Refresh:** Either per-query or on interval (e.g., every 5 minutes)
+**Data Schema:** Use Pydantic models for type safety and validation
+**Error Handling:** Graceful degradation if data sources are unavailable
 
 ## Environment Variables
 
+**Required in `.env` file:**
+
 ```bash
-# LLM API (required)
-ANTHROPIC_API_KEY=your_key_here
+# LLM API Keys
+ANTHROPIC_API_KEY=your_key_here  # Primary (Claude Sonnet 4.5)
+OPENAI_API_KEY=your_key_here     # Alternative
+MISTRAL_API_KEY=your_key_here    # Alternative
 
 # Sports Data APIs
-RAPIDAPI_KEY=your_key_here           # API-Football (Pro tier $19/mo)
-ODDS_API_KEY=your_key_here           # The Odds API (FREE, 500 req/mo) - OPTIONAL
-
-# Alternative LLM providers (optional)
-OPENAI_API_KEY=your_key_here
-MISTRAL_API_KEY=your_key_here
+RAPIDAPI_KEY=your_key_here       # API-Football (Pro tier $19/mo)
+ODDS_API_KEY=your_key_here       # The Odds API (FREE tier 500 req/mo)
 ```
 
-**Setup The Odds API (optional but recommended for betting features):**
-1. Get free API key at https://the-odds-api.com/
-2. Add to `.env` as `ODDS_API_KEY=your_key`
-3. See `ODDS_API_SETUP.md` for details
+**Note:** TheSportsDB and Kicker RSS require no API keys (FREE tier)
 
----
+## Key Files Reference
 
-## Persona Quality Scores
+**Backend Core:**
+- `data_aggregator.py` - Main data pipeline (1,100+ lines)
+- `models.py` - Pydantic schemas (150 lines)
+- `user_config.py` - User preferences (175 lines)
+- `onboarding.py` - Interactive setup (145 lines)
 
-**Current beta quality: 9.1/10 average**
+**Test Files:**
+- `test_form_guide.py` - Form guide + LLM integration test
+- `test_h2h.py` - Head-to-head records test
+- `test_betting_odds.py` - Betting odds integration test
+- `test_user_config_integration.py` - User config test
+- `test_language_detail_levels.py` - Bilingual + detail level test
 
-| Persona | Score | Key Features |
-|---------|-------|--------------|
-| Casual Fan | 9/10 | Quick mode, simple language |
-| Expert Analyst | 9-9.5/10 | Detailed mode, tactical depth, form + H2H |
-| Betting Enthusiast | 9.5-10/10 | Odds + form + injuries + H2H 🎯 |
-| Fantasy Player | 9/10 | Player stats + injuries |
+**Configuration:**
+- `.env` - API keys (gitignored)
+- `.env.example` - Template for API keys
+- `.fussballgpt_config.json` - User preferences (gitignored)
 
-**How we got here:**
-- Issue #1 (Player Stats): +1.0 for Fantasy
-- Issue #2 (Onboarding): +0.5 across all personas
-- Issue #5 (Form Guide): +1.0 Betting, +0.5 Analyst
-- Issue #6 (H2H Records): +0.5 Betting, +0.5 Analyst
-- Issue #7 (Injuries): +0.5-1.0 Betting, +0.5 Fantasy
-- Issue #8 (Odds API): +1.5 Betting 🎯
+**Documentation:**
+- `ODDS_API_SETUP.md` - The Odds API setup guide
+- `CLAUDE.md` - This file
 
----
+**Cache (gitignored):**
+- `cache/player_stats.json`
+- `cache/team_form.json`
+- `cache/injuries.json`
+- `cache/betting_odds.json`
+- `cache/head_to_head.json`
 
-## Development Workflow
+## Frontend Planning (Next Phase)
 
-### Phase 3: Frontend Development (Next)
+### Goals
 
-**Tech Stack (per user preferences):**
-- **Framework:** Next.js 14+ (React, TypeScript)
-- **Styling:** Tailwind CSS
-- **Components:** shadcn/ui (copy/paste, customizable)
-- **Deployment:** Vercel (git push to deploy)
+1. **Web-based interface** for Fußball GPT
+2. **Modern UI** with shadcn/ui components
+3. **Real-time interaction** with backend data
+4. **Responsive design** for mobile + desktop
+5. **AI-native UX** (chat interface, streaming responses)
 
-**Component Planning:**
-1. Use shadcn agent to identify best components
-2. Review AI-specific components (chat interfaces, streaming)
-3. Plan testing strategy
-4. Create feature branch: `frontend-phase-3`
+### Tech Stack (Planned)
 
-**Key Features to Build:**
-- Chat-style interface for queries
-- Match cards showing odds, form, injuries
-- User preference toggle (language, detail level)
-- Responsive mobile/desktop design
+**Framework:** Next.js 14+ (App Router)
+**Language:** TypeScript
+**Styling:** Tailwind CSS
+**Components:** shadcn/ui (AI-optimized components)
+**Deployment:** Vercel
+**Backend Integration:** API routes → Python backend
 
-### Git Workflow
+### Component Planning Strategy
 
-**Main branch:** `master` (protected, beta-ready backend)
-**Feature branches:** `frontend-phase-3`, `feature/xyz`
-**Commits:** Use conventional commits with co-author attribution
+**Use shadcn agent** to identify:
+1. AI-specific components (chat interfaces, streaming text)
+2. Sports data visualization components
+3. Form components (user preferences)
+4. Layout components (responsive design)
 
-```bash
-# Create feature branch
-git checkout -b frontend-phase-3
+**Workflow:**
+1. Review AI component patterns (chat, streaming, markdown)
+2. Map backend features → UI components
+3. Create component hierarchy
+4. Plan testing strategy (Playwright/Cypress)
+5. Implement on feature branch
 
-# Commit format
-git commit -m "feat: add match card component
+### Backend API Layer (Required)
 
-- Display odds, form, injuries
-- Responsive design
-- shadcn/ui Card component
+**Create:** FastAPI or Next.js API routes
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+**Endpoints needed:**
+- `GET /api/data` - Aggregated sports data
+- `POST /api/query` - LLM query with streaming
+- `GET /api/config` - User preferences
+- `POST /api/config` - Update preferences
+- `GET /api/health` - API health check
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+**Integration pattern:**
+```
+Next.js Frontend
+    ↓ (API route)
+Python Backend (data_aggregator.py)
+    ↓
+LLM (Anthropic Claude)
+    ↓
+Streaming response → Frontend
 ```
 
----
+### Development Approach
 
-## Testing Strategy
+1. **Branch:** Create `frontend` branch
+2. **Setup:** Initialize Next.js with TypeScript + Tailwind
+3. **Components:** Research with shadcn agent
+4. **API Layer:** Build FastAPI or Next.js API routes
+5. **Integration:** Connect frontend → API → Python backend
+6. **Testing:** E2E tests with real data
+7. **Deploy:** Vercel preview deployment
 
-### Backend Tests (Complete)
-```bash
-pytest                              # All tests
-python test_form_guide.py           # Form guide + LLM integration
-python test_betting_odds.py         # Odds API
-python test_h2h.py                  # Head-to-head records
-python test_language_detail_levels.py  # Bilingual + detail levels
-```
+## Related Documentation
 
-### Frontend Tests (Upcoming)
-- Component testing (Jest + React Testing Library)
-- E2E testing (Playwright)
-- Visual regression (Chromatic/Percy)
-- API mocking (MSW)
-
----
-
-## API Quota Management
-
-**Monthly Usage (with caching):**
-- TheSportsDB: ~500 requests (well under 30/min limit)
-- API-Football: ~240 requests (Pro tier: generous)
-- The Odds API: ~30 requests (well under 500/month limit)
-
-**Without caching, we'd use:**
-- 4,500+ API-Football requests/month (expensive overages)
-- 500 Odds API requests in 1 day (immediate limit)
-
-**Caching saves ~95% of API costs**
-
----
-
-## Known Issues & Limitations
-
-### Seasonal Features
-- **H2H records:** Only available during Bundesliga season with scheduled fixtures
-- **Off-season:** Gracefully handles missing data (no fixtures = no H2H displayed)
-
-### Rate Limiting
-- **TheSportsDB:** May hit 30 req/min during heavy testing
-- **Mitigation:** Caching handles gracefully, uses cached data when limits hit
-
-### API-Football Free Tier
-- **Season access:** Free tier limited to historical seasons (2021-2023)
-- **Current project:** Uses Pro tier ($19/mo) for current season (2024/25)
-
----
-
-## Documentation
-
-**Setup & Configuration:**
-- `README.md` - Project overview
-- `QUICK_START.md` - Getting started guide
-- `ODDS_API_SETUP.md` - Betting odds API setup
-
-**Development:**
-- `KSI_PROTOTYPE_DEVELOPMENT_BRIEF.md` - Original specification
-- Knowledge base: `/Users/patrickmeehan/knowledge-base/projects/ksi_prototype/`
-
-**Related Knowledge Base Files:**
-- `[[ksi_prototype_specification]]`
-- `[[kicker_ai_platform_architecture]]`
-
----
-
-## Contact & Support
-
-**GitHub:** https://github.com/PHMD/fussball-gpt
-**Issues:** https://github.com/PHMD/fussball-gpt/issues
-
----
-
-## Next Steps (Post-Compact)
-
-**Phase 3: Frontend Development**
-
-1. **Component Planning (with shadcn agent):**
-   - Identify required shadcn components
-   - Review AI-specific components (chat, streaming)
-   - Plan responsive layout
-
-2. **Architecture Design:**
-   - Next.js app structure
-   - API routes for backend integration
-   - State management strategy
-
-3. **Testing Strategy:**
-   - Component tests
-   - E2E tests
-   - API mocking
-
-4. **Git Workflow:**
-   - Create `frontend-phase-3` branch
-   - Plan feature increments
-   - Define merge strategy
-
-**Goal:** Production-ready web interface for Fußball GPT beta launch
+- `ODDS_API_SETUP.md` - Betting odds API configuration
+- GitHub: https://github.com/PHMD/fussball-gpt
+- Issues: https://github.com/PHMD/fussball-gpt/issues
