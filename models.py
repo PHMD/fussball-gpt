@@ -85,7 +85,7 @@ class PlayerStats(BaseModel):
     clean_sheets: Optional[int] = None
 
     # Metadata
-    season: str = "2024-2025"
+    season: str = "2022-2023"
     league: str = "Bundesliga"
 
     class Config:
@@ -124,7 +124,7 @@ class AggregatedData(BaseModel):
                 lines.append("")
 
         if self.player_stats:
-            lines.append("=== TOP PLAYER STATISTICS (Bundesliga 2024/25) ===")
+            lines.append("=== TOP PLAYER STATISTICS (Bundesliga 2022/23 - Letzte vollständige Saison) ===")
 
             # Group by category for better readability
             top_scorers = sorted(self.player_stats, key=lambda p: p.goals, reverse=True)[:10]

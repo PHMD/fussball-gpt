@@ -33,9 +33,12 @@ class DataAggregator:
         self.kicker_rss_url = "https://newsfeed.kicker.de/opml"
         self.sports_db_base_url = "https://www.thesportsdb.com/api/v1/json/3"
 
-        # API-Football (optional - for real-time data)
-        self.rapidapi_key = os.getenv("RAPIDAPI_KEY")
-        self.has_api_football = bool(self.rapidapi_key)
+        # API-Football (direct API, free tier: 100 req/day)
+        # Uses RAPIDAPI_KEY but with direct API endpoints (not RapidAPI format)
+        # Free tier limitation: 2021-2023 seasons only (current season requires paid plan)
+        self.api_football_key = os.getenv("RAPIDAPI_KEY")
+        self.has_api_football = bool(self.api_football_key)
+        self.api_football_base_url = "https://v3.football.api-sports.io"
 
         # Cache setup for player stats (6-hour cache to stay within rate limits)
         self.cache_dir = Path("cache")
@@ -209,16 +212,17 @@ class DataAggregator:
 
         return events
 
-    def fetch_player_stats(self, league_id: int = 78, season: str = "2024") -> list[PlayerStats]:
+    def fetch_player_stats(self, league_id: int = 78, season: str = "2023") -> list[PlayerStats]:
         """
-        Fetch top player statistics from API-Football.
+        Fetch top player statistics from API-Football (direct API, free tier).
 
         Args:
             league_id: Bundesliga ID = 78
-            season: Season year (2024 for 2024/25 season)
+            season: Season year (2023 = 2022/23 season, free tier limit)
+                   Note: Free tier only has 2021-2023 data
 
         Returns:
-            List of PlayerStats objects for top performers
+            List of PlayerStats objects for top performers (last completed season)
         """
         if not self.has_api_football:
             print("API-Football not configured (RAPIDAPI_KEY missing)")
@@ -227,12 +231,11 @@ class DataAggregator:
         players = []
 
         try:
-            # API-Football endpoint for player statistics
-            url = "https://api-football-v1.p.rapidapi.com/v3/players/topscorers"
+            # API-Football direct API endpoint
+            url = f"{self.api_football_base_url}/players/topscorers"
 
             headers = {
-                "X-RapidAPI-Key": self.rapidapi_key,
-                "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+                "x-apisports-key": self.api_football_key
             }
 
             params = {
@@ -287,8 +290,7 @@ class DataAggregator:
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403:
-                print("⚠️  API-Football: Not subscribed. Subscribe at https://rapidapi.com/api-sports/api/api-football")
-                print("   Select MEGA plan (100 req/day, FREE) to enable player stats")
+                print("⚠️  API-Football: Invalid API key or quota exceeded (100 req/day limit)")
             else:
                 print(f"HTTP Error fetching player stats: {e}")
         except Exception as e:
