@@ -40,10 +40,16 @@ class DataAggregator:
         self.has_api_football = bool(self.api_football_key)
         self.api_football_base_url = "https://v3.football.api-sports.io"
 
-        # Cache setup for player stats (6-hour cache to stay within rate limits)
+        # The Odds API (free tier: 500 req/month)
+        self.odds_api_key = os.getenv("ODDS_API_KEY")
+        self.has_odds_api = bool(self.odds_api_key)
+        self.odds_api_base_url = "https://api.the-odds-api.com/v4"
+
+        # Cache setup
         self.cache_dir = Path("cache")
         self.cache_dir.mkdir(exist_ok=True)
-        self.cache_duration = timedelta(hours=6)
+        self.cache_duration = timedelta(hours=6)  # Player stats, team form
+        self.odds_cache_duration = timedelta(hours=24)  # Odds update less frequently
 
     def fetch_kicker_api(self) -> list[NewsArticle]:
         """
@@ -450,6 +456,127 @@ class DataAggregator:
 
         return team_forms
 
+    def fetch_betting_odds(self) -> dict[str, dict]:
+        """
+        Fetch pre-match betting odds for Bundesliga fixtures from The Odds API.
+
+        Returns:
+            Dict mapping match IDs to odds data like:
+            {"match_id": {"home": "Bayern", "away": "Dortmund", "odds": {"home": 1.50, "draw": 4.20, "away": 7.00}}}
+        """
+        if not self.has_odds_api:
+            print("The Odds API not configured (ODDS_API_KEY missing)")
+            return {}
+
+        odds_data = {}
+
+        try:
+            # Fetch odds for German Bundesliga
+            url = f"{self.odds_api_base_url}/sports/soccer_germany_bundesliga/odds/"
+
+            params = {
+                "apiKey": self.odds_api_key,
+                "regions": "eu",  # European bookmakers
+                "markets": "h2h",  # Head-to-head (match winner)
+                "oddsFormat": "decimal"  # European decimal format
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            # Process odds data
+            for event in data:
+                match_id = event.get("id")
+                home_team = event.get("home_team")
+                away_team = event.get("away_team")
+                commence_time = event.get("commence_time")
+
+                # Get average odds from first bookmaker (or average if multiple)
+                bookmakers = event.get("bookmakers", [])
+                if not bookmakers:
+                    continue
+
+                # Use first bookmaker's odds (could average multiple in future)
+                first_bookmaker = bookmakers[0]
+                markets = first_bookmaker.get("markets", [])
+
+                # Find h2h market
+                h2h_market = next((m for m in markets if m.get("key") == "h2h"), None)
+                if not h2h_market:
+                    continue
+
+                outcomes = h2h_market.get("outcomes", [])
+
+                # Extract odds for home, draw, away
+                odds = {}
+                for outcome in outcomes:
+                    name = outcome.get("name")
+                    price = outcome.get("price")
+
+                    if name == home_team:
+                        odds["home"] = price
+                    elif name == away_team:
+                        odds["away"] = price
+                    elif name.lower() == "draw":
+                        odds["draw"] = price
+
+                if odds:
+                    odds_data[match_id] = {
+                        "home": home_team,
+                        "away": away_team,
+                        "commence_time": commence_time,
+                        "odds": odds,
+                        "bookmaker": first_bookmaker.get("title", "Unknown")
+                    }
+
+            print(f"Fetched odds for {len(odds_data)} Bundesliga fixtures")
+
+            # Check remaining quota
+            remaining = response.headers.get("x-requests-remaining")
+            if remaining:
+                print(f"Odds API requests remaining: {remaining}")
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                print("⚠️  The Odds API: Invalid API key")
+            elif e.response.status_code == 429:
+                print("⚠️  The Odds API: Rate limit exceeded (500 req/month on free tier)")
+            else:
+                print(f"HTTP Error fetching odds: {e}")
+        except Exception as e:
+            print(f"Error fetching betting odds: {e}")
+
+        return odds_data
+
+    def fetch_betting_odds_cached(self) -> dict[str, dict]:
+        """Fetch betting odds with caching (24-hour cache)."""
+        cache_file = self.cache_dir / "betting_odds.json"
+
+        # Check cache
+        if cache_file.exists():
+            cache_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if cache_age < self.odds_cache_duration:
+                print(f"Using cached betting odds ({cache_age.seconds // 3600}h old)")
+                try:
+                    with open(cache_file) as f:
+                        return json.load(f)
+                except Exception as e:
+                    print(f"Error loading cache: {e}")
+
+        # Fetch fresh data
+        odds_data = self.fetch_betting_odds()
+
+        # Save to cache
+        if odds_data:
+            try:
+                with open(cache_file, 'w') as f:
+                    json.dump(odds_data, f)
+            except Exception as e:
+                print(f"Error saving cache: {e}")
+
+        return odds_data
+
     def fetch_sports_api(self) -> list[SportsEvent]:
         """
         Fetch sports data from TheSportsDB public API.
@@ -531,7 +658,10 @@ class DataAggregator:
         # Fetch team form guide (cached, 6 hours)
         team_forms = self.fetch_team_form_cached()
 
-        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms")
+        # Fetch betting odds (cached, 24 hours)
+        betting_odds = self.fetch_betting_odds_cached() if self.has_odds_api else {}
+
+        print(f"Fetched {len(all_articles)} articles, {len(all_events)} events, {len(player_stats)} player stats, {len(team_forms)} team forms, {len(betting_odds)} odds")
 
         # Create aggregated data
         data = AggregatedData(
@@ -540,8 +670,9 @@ class DataAggregator:
             player_stats=player_stats,
         )
 
-        # Prepend standings + form guide to context (monkey-patch for this instance)
+        # Prepend standings + form guide + odds to context (monkey-patch for this instance)
         form_guide_text = self._format_form_guide(team_forms)
+        betting_odds_text = self._format_betting_odds(betting_odds)
         original_context = data.to_context_string()
 
         enhanced_parts = []
@@ -549,6 +680,8 @@ class DataAggregator:
             enhanced_parts.append(standings_text)
         if form_guide_text:
             enhanced_parts.append(form_guide_text)
+        if betting_odds_text:
+            enhanced_parts.append(betting_odds_text)
         enhanced_parts.append(original_context)
 
         data._enhanced_context = "\n\n".join(enhanced_parts)
@@ -570,6 +703,62 @@ class DataAggregator:
             form_str = form_data["form"]
             points = form_data["points"]
             lines.append(f"{team_name}: {form_str} ({points} Punkte aus letzten 5 Spielen)")
+
+        return "\n".join(lines)
+
+    def _format_betting_odds(self, betting_odds: dict[str, dict]) -> str:
+        """Format betting odds for LLM context."""
+        if not betting_odds:
+            return ""
+
+        lines = ["=== BETTING ODDS (Upcoming Fixtures) ==="]
+        lines.append("⚠️  Odds are for entertainment purposes only")
+        lines.append("")
+
+        # Group by commence time to show upcoming fixtures in order
+        fixtures = []
+        for match_id, odds_data in betting_odds.items():
+            home = odds_data["home"]
+            away = odds_data["away"]
+            odds = odds_data["odds"]
+            commence_time = odds_data.get("commence_time", "")
+            bookmaker = odds_data.get("bookmaker", "Unknown")
+
+            # Parse commence time for sorting
+            try:
+                commence_dt = datetime.fromisoformat(commence_time.replace("Z", "+00:00"))
+            except:
+                commence_dt = datetime.now()
+
+            # Format odds display
+            home_odds = odds.get("home", "N/A")
+            draw_odds = odds.get("draw", "N/A")
+            away_odds = odds.get("away", "N/A")
+
+            fixtures.append({
+                "time": commence_dt,
+                "home": home,
+                "away": away,
+                "home_odds": home_odds,
+                "draw_odds": draw_odds,
+                "away_odds": away_odds,
+                "bookmaker": bookmaker
+            })
+
+        # Sort by commence time (earliest first)
+        fixtures.sort(key=lambda x: x["time"])
+
+        # Format output
+        for fixture in fixtures[:10]:  # Show next 10 fixtures
+            time_str = fixture["time"].strftime("%d.%m %H:%M")
+            lines.append(
+                f"{fixture['home']} vs {fixture['away']} ({time_str})"
+            )
+            lines.append(
+                f"  Quoten: Heim {fixture['home_odds']:.2f} | Unentschieden {fixture['draw_odds']:.2f} | Auswärts {fixture['away_odds']:.2f}"
+            )
+            lines.append(f"  Quelle: {fixture['bookmaker']}")
+            lines.append("")
 
         return "\n".join(lines)
 
