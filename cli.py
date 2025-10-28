@@ -349,6 +349,11 @@ class KSI_CLI:
         # Persona selection
         self.persona = self._select_persona()
 
+        # Mode state management (Issue #21)
+        self.mode = "qa"  # "qa" or "feed"
+        self.current_feed_topic: Optional[str] = None
+        self.current_feed_items: list = []
+
         print(f"\nKSI initialized with {provider.upper()} provider")
         print("[ConversationManager enabled - topic detection active]")
         print(f"[Persona: {self.persona.value.replace('_', ' ').title()}]")
@@ -376,6 +381,29 @@ class KSI_CLI:
                 return Persona.FANTASY_PLAYER
             else:
                 print("Invalid choice. Please enter 1, 2, 3, or 4.")
+
+    def switch_to_feed_mode(self, topic: str, feed_items: list):
+        """Switch from Q&A to Feed mode."""
+        self.mode = "feed"
+        self.current_feed_topic = topic
+        self.current_feed_items = feed_items
+        self._display_feed_header()
+
+    def back_to_qa_mode(self):
+        """Return to Q&A mode."""
+        self.mode = "qa"
+        self.current_feed_topic = None
+        self.current_feed_items = []
+        print("\n" + "="*60)
+        print("[Returned to Q&A mode]")
+        print("="*60 + "\n")
+
+    def _display_feed_header(self):
+        """Display feed mode header with topic and persona."""
+        print("\n" + "┌" + "─"*58 + "┐")
+        print(f"│ PERSONALIZED FEED: {self.current_feed_topic.upper():<42} │")
+        print(f"│ {self.persona.value.replace('_', ' ').title()} • {len(self.current_feed_items)} items{' '*(30-len(str(len(self.current_feed_items))))}│")
+        print("├" + "─"*58 + "┤")
 
     def refresh_data(self, force: bool = False) -> AggregatedData:
         """
@@ -421,13 +449,18 @@ class KSI_CLI:
         # Main loop
         while True:
             try:
-                # Get user input
-                user_input = input("\n🏆 You: ").strip()
+                # Mode-specific prompt (Issue #21)
+                if self.mode == "feed":
+                    prompt = "\n📰 Feed Command (number/back/refine/more): "
+                else:
+                    prompt = "\n🏆 You: "
+
+                user_input = input(prompt).strip()
 
                 if not user_input:
                     continue
 
-                # Handle commands
+                # Handle global commands (work in both modes)
                 if user_input.lower() in ["/exit", "/quit"]:
                     print("\nGoodbye! Thanks for using KSI.")
                     break
@@ -435,6 +468,46 @@ class KSI_CLI:
                 if user_input.lower() == "/refresh":
                     self.refresh_data(force=True)
                     continue
+
+                # Feed mode commands (Issue #21)
+                if self.mode == "feed":
+                    # Number selection (1-10)
+                    if user_input.isdigit():
+                        item_num = int(user_input)
+                        if 1 <= item_num <= len(self.current_feed_items):
+                            item = self.current_feed_items[item_num - 1]
+                            print(f"\n{'='*60}")
+                            print(f"📰 {item['headline']}")
+                            print(f"{'='*60}")
+                            print(f"\n{item['summary']}\n")
+                            if item.get('url'):
+                                print(f"🔗 Full article: {item['url']}\n")
+                            print(f"{'='*60}")
+                        else:
+                            print(f"Invalid item number. Please enter 1-{len(self.current_feed_items)}")
+                        continue
+
+                    # Back to Q&A
+                    elif user_input.lower() == "back":
+                        self.back_to_qa_mode()
+                        continue
+
+                    # Refine feed
+                    elif user_input.lower() == "refine":
+                        print("\n[Feed refinement coming in future update]")
+                        print("For now, type 'back' to return to Q&A mode")
+                        continue
+
+                    # Load more items
+                    elif user_input.lower() == "more":
+                        print("\n[Loading more items coming in future update]")
+                        print("For now, type 'back' to return to Q&A mode")
+                        continue
+
+                    # Invalid command in feed mode
+                    else:
+                        print("\nFeed mode commands: number (1-10), back, refine, more")
+                        continue
 
                 # Refresh data if needed (automatic)
                 data = self.refresh_data()
@@ -482,15 +555,16 @@ class KSI_CLI:
                         if not feed_items:
                             print(f"   ⚠️ No content found - This should never happen with engagement fallback!")
                         else:
+                            # Switch to feed mode (Issue #21)
+                            self.switch_to_feed_mode(topic, feed_items)
+
                             # Check for engagement fallback
                             has_fallback = any(item.get("is_fallback", False) for item in feed_items)
                             primary_count = sum(1 for item in feed_items if not item.get("is_fallback", False))
 
-                            print(f"\n{'='*60}")
-                            print(f"  📰 YOUR {topic.upper()} FEED ({len(feed_items)} items)")
                             if has_fallback:
-                                print(f"  🎯 Engagement Engine: {primary_count} primary + {len(feed_items) - primary_count} fallback")
-                            print(f"{'='*60}\n")
+                                print(f"│ 🎯 Engagement Engine: {primary_count} primary + {len(feed_items) - primary_count} fallback")
+                            print("│")
 
                             for i, item in enumerate(feed_items, 1):
                                 # Format based on type
@@ -501,28 +575,27 @@ class KSI_CLI:
 
                                 # Show category and headline
                                 headline = f"[{category}] {item['headline']}" if category else item['headline']
-                                print(f"{i}. {icon} {headline}")
-                                print(f"   {item['summary']}")
-                                print(f"   └─ Relevance: {item['relevance']:.0%} | {item['timestamp'].strftime('%Y-%m-%d %H:%M')}")
+                                print(f"│ {i}. {icon} {headline}")
+                                print(f"│    {item['summary']}")
+                                print(f"│    └─ Relevance: {item['relevance']:.0%} | {item['timestamp'].strftime('%Y-%m-%d %H:%M')}")
 
                                 # Show persona boost if non-zero
                                 if boost != 0:
                                     sign = "↑" if boost > 0 else "↓"
-                                    print(f"   └─ Persona boost: {sign} {boost:+.2f}")
+                                    print(f"│    └─ Persona boost: {sign} {boost:+.2f}")
 
                                 # Show engagement fallback indicator
                                 if is_fallback:
-                                    print(f"   └─ 🎯 Engagement fallback (keeping you engaged)")
+                                    print(f"│    └─ 🎯 Engagement fallback (keeping you engaged)")
 
                                 if item.get("url"):
-                                    print(f"   └─ {item['url']}")
-                                print()
+                                    print(f"│    └─ {item['url']}")
+                                print("│")
 
-                            print(f"{'='*60}")
+                            print("└" + "─"*58 + "┘")
                             if has_fallback:
                                 print(f"💡 Limited {topic} content → Broadened to related Bundesliga news")
-                                print(f"   Engagement strategy: Never show empty results")
-                            print("[Feed mode completed - returning to Q&A...]")
+                            print("\n📌 Commands: Type number (1-10) to view, 'back' to exit, 'refine' or 'more'")
                             print(f"{'='*60}\n")
                     else:
                         print("\n[Continuing with Q&A mode...]")
