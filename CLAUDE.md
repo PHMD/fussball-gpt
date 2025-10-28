@@ -45,6 +45,41 @@ const result = await streamText({ ... });  // Might be outdated
 - Context7 provides primary source documentation
 - Prevents bugs from deprecated patterns
 
+## Project Management & Git Workflow
+
+**GitHub Issues and Regular Commits**
+
+To maintain better traceability and project management:
+
+1. **Create or update GitHub issues** as we work on tasks
+   - Document what you're working on
+   - Link commits to issues with keywords (e.g., "Fixes #123", "Closes #45")
+   - Track progress and decisions
+
+2. **Commit regularly** for better git history
+   - Commit after completing logical units of work
+   - Use descriptive commit messages following project conventions
+   - Include issue references in commit messages
+   - Push frequently to keep remote in sync
+
+3. **Issue workflow:**
+   - Start work → Create/update issue with task details
+   - During work → Reference issue in commits
+   - Complete work → Close issue with final commit
+   - Document decisions and blockers in issue comments
+
+**Example commit message:**
+```bash
+git commit -m "feat: Add suggestion component - Fixes #42
+
+- Created interactive suggestion buttons
+- Integrated with chat interface
+- Added German-language prompts
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
 ## Current Implementation Status (October 2025)
 
 ### Completed Features (Backend Ready)
