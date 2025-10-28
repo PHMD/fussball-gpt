@@ -1,0 +1,8 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "What are the latest Bundesliga news?"
+    }
+  ]
+}

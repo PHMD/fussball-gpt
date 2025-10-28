@@ -12,6 +12,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Next Phase:** Web frontend with Next.js + shadcn/ui components
 
+## Documentation & Best Practices
+
+**CRITICAL: Always Use Context7 for Current Documentation**
+
+Before implementing any library, framework, or API integration:
+
+1. **Never guess or rely on potentially outdated knowledge**
+2. **Always check Context7** for up-to-date documentation
+3. **Use the Context7 MCP tools** to fetch current API references and examples
+
+**Example workflow:**
+```typescript
+// DON'T: Assume you know the API
+const result = await streamText({ ... });  // Might be outdated
+
+// DO: Check Context7 first
+// Use Context7 tools to get current Vercel AI SDK documentation
+// Then implement based on current docs
+```
+
+**Key libraries to always verify with Context7:**
+- Vercel AI SDK (`ai`, `@ai-sdk/anthropic`)
+- Next.js App Router patterns
+- Zod schema validation
+- shadcn/ui components
+- Vercel KV caching API
+
+**Why this matters:**
+- APIs change frequently (especially Vercel AI SDK)
+- Documentation from training data may be outdated
+- Context7 provides primary source documentation
+- Prevents bugs from deprecated patterns
+
 ## Current Implementation Status (October 2025)
 
 ### Completed Features (Backend Ready)
