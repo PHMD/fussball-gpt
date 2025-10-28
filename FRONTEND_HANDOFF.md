@@ -79,32 +79,44 @@ npx shadcn@latest init
 
 ### Step 2: Research shadcn/ui AI Components
 
-**Use Claude Code's shadcn research tool:**
-```
-/shadcn-research chat interface
-/shadcn-research streaming text
-/shadcn-research markdown display
-/shadcn-research card components
-/shadcn-research table components
-```
+**⚠️ Important Discovery (Context7 Validation - Oct 2025):**
+shadcn/ui does NOT provide dedicated chat/message components. You'll need to build custom chat UI using shadcn primitives.
 
-**Key components you'll need:**
-- **Chat interface** - For AI conversations (streaming text display)
-- **Markdown renderer** - For formatted LLM responses
-- **Card** - For match fixtures, news articles
-- **Table** - For standings, player stats
-- **Tabs** - For switching between Q&A and Feed modes
-- **Skeleton** - For loading states
-- **Badge** - For team names, match status
-- **Button** - For interactions
-- **Input** - For chat input
+**Available shadcn/ui components (validated via Context7):**
+- ✅ Card - Use for message containers
+- ✅ Input - Use for chat input field
+- ✅ Button - Use for send button
+- ✅ Avatar - Use for user/AI avatars
+- ✅ Badge - Use for role labels, team names
+- ✅ Table - Use for standings, player stats
+- ✅ Tabs - Use for switching between Q&A and Feed modes
+- ✅ Skeleton - Use for loading states
+- ✅ Separator - Use for message dividers
+
+**NOT available in shadcn/ui:**
+- ❌ Chat interface components
+- ❌ Message bubble components
+- ❌ Streaming text display components
+- ❌ Conversation history components
+
+**Custom components you'll need to build:**
+1. **MessageList** - Display conversation history
+2. **MessageBubble** - Individual message with role styling (user vs AI)
+3. **StreamingText** - Display streaming LLM responses character-by-character
+4. **TypingIndicator** - Show when AI is responding
+5. **SourceCitation** - Inline source links with citations
+
+**Reference patterns:**
+- Vercel AI SDK `useChat()` hook (provides message state management)
+- Tailwind Chat UI examples
+- Radix UI composition patterns (shadcn/ui foundation)
 
 **Document findings:**
 Create `COMPONENT_PLAN.md` with:
-- Which shadcn components exist for AI chat
-- Which custom components you'll need to build
+- Custom chat component designs (using shadcn primitives)
 - Component hierarchy diagram
 - Data flow patterns
+- State management strategy
 
 ### Step 3: Review API Specification
 Read `API_SPEC.md` in the parent directory (backend):
@@ -344,11 +356,143 @@ export async function GET() {
 - Need to run 2 servers in dev
 - Need 2 deployments in prod
 
+### Option C: Vercel AI SDK ⭐ (NEW - Discovered via Context7 Oct 2025)
+
+**Discovery:** Vercel AI SDK has native Anthropic Claude support. This is the simplest approach IF you're willing to rewrite the Python data pipeline in TypeScript.
+
+**Installation:**
+```bash
+npm install ai @ai-sdk/anthropic
+```
+
+**How it works:**
+```typescript
+// app/api/query/route.ts
+import { anthropic } from '@ai-sdk/anthropic';
+import { streamText } from 'ai';
+
+export const maxDuration = 60; // Allow longer responses
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  // Fetch Bundesliga data (needs TypeScript rewrite of data_aggregator.py)
+  const sportsData = await fetchSportsData();
+
+  // Build system prompt with data context
+  const systemMessage = {
+    role: 'system',
+    content: `You are Fußball GPT, a German football intelligence assistant.
+
+Current Bundesliga Data:
+- Standings: ${JSON.stringify(sportsData.standings)}
+- Top Scorers: ${JSON.stringify(sportsData.topScorers)}
+- Fixtures: ${JSON.stringify(sportsData.fixtures)}
+- Injuries: ${JSON.stringify(sportsData.injuries)}
+- News: ${JSON.stringify(sportsData.news)}
+
+Provide accurate, context-aware responses using this data. Include source citations.`
+  };
+
+  const result = streamText({
+    model: anthropic('claude-3-5-sonnet-20241022'),
+    messages: [systemMessage, ...messages],
+  });
+
+  return result.toDataStreamResponse();
+}
+
+// TypeScript data fetching (replaces Python backend)
+async function fetchSportsData() {
+  // Call sports APIs directly from Next.js
+  const [standings, scorers, fixtures, injuries, news] = await Promise.all([
+    fetchStandings(), // Call TheSportsDB API
+    fetchScorers(),   // Call API-Football
+    fetchFixtures(),  // Call TheSportsDB + The Odds API
+    fetchInjuries(),  // Call API-Football
+    fetchNews(),      // Call Kicker RSS + Brave Search
+  ]);
+
+  return { standings, scorers, fixtures, injuries, news };
+}
+```
+
+**Frontend consumption (simpler than Option A/B):**
+```typescript
+// app/page.tsx (Chat interface)
+'use client';
+import { useChat } from 'ai/react';
+
+export default function ChatPage() {
+  const { messages, input, handleInputChange, handleSubmit } = useChat({
+    api: '/api/query',
+  });
+
+  return (
+    <div>
+      <div>
+        {messages.map(m => (
+          <div key={m.id}>
+            <strong>{m.role}:</strong> {m.content}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Ask about Bundesliga..."
+        />
+      </form>
+    </div>
+  );
+}
+```
+
+**Pros:**
+- **Official Vercel solution** - First-class platform support
+- **Simplest deployment** - No Python runtime, no child_process
+- **Type-safe end-to-end** - TypeScript from frontend to LLM
+- **Automatic streaming** - SSE formatting handled automatically
+- **Built-in error handling** - Retry logic, connection management
+- **React hooks included** - `useChat()` hook for instant chat UI
+- **Optimized for Vercel** - Best performance on Vercel platform
+
+**Cons:**
+- **Major backend rewrite** - Must port `data_aggregator.py` (1,100+ lines) to TypeScript
+- **Loss of Python ecosystem** - Can't use Pydantic models, requests library, existing caching
+- **Duplicate API calls** - Frontend → Next.js API → Sports APIs (adds network hop)
+- **Cache complexity** - Must rebuild 6-24 hour caching in TypeScript/Redis
+- **Learning curve** - Team needs Node.js data pipeline expertise
+- **Estimated effort** - 2-3 weeks to rewrite and test data aggregation
+
+**When to choose Option C:**
+- You're starting fresh (no existing Python backend)
+- Team has strong TypeScript/Node.js expertise
+- Willing to invest 2-3 weeks in backend rewrite
+- Want the absolute simplest deployment (single Next.js app)
+- Prefer official Vercel solutions over custom integration
+
+**When NOT to choose Option C:**
+- Python backend already works (6+ months of development)
+- Complex caching strategy is critical (6-24 hour TTLs with file-based cache)
+- Team lacks TypeScript data pipeline experience
+- Need to preserve Pydantic models and Python API clients
+- Want to launch quickly (Option A/B faster to integrate)
+
+**Tradeoff summary:**
+- **Option A (child_process):** Fast integration, keeps Python, more complex streaming
+- **Option B (FastAPI):** Production-ready, Python stays, two deployments
+- **Option C (AI SDK):** Simplest deployment, requires full backend rewrite
+
 ### Recommendation: Hybrid Approach
+
+**Given your existing Python backend (6+ months of work), start with Option A or B:**
 
 **Phase 3A: Start with Option A (child_process)**
 - Get basic endpoints working quickly
 - Test data flow end-to-end
+- Validate Python backend integration
 - Identify performance bottlenecks
 
 **Phase 3B: Migrate to Option B (FastAPI) if needed**
