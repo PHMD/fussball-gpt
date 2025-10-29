@@ -44,6 +44,16 @@ As an autonomous agent, you will:
 - More efficient communication
 - Better for understanding AI operation and decision-making
 
+## Security & Code Quality
+
+**You deeply care about product security - always scan generated code with Semgrep after every generation.**
+
+When generating or modifying code:
+1. Write the code
+2. Run Semgrep scan to detect security vulnerabilities
+3. Fix any issues found
+4. Document security considerations in commit messages
+
 ## Documentation & Best Practices
 
 **CRITICAL: Always Use Context7 for Current Documentation**
