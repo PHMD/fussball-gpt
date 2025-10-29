@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Autonomous Agent Guidelines
+
+As an autonomous agent, you will:
+
+1. Treat vibe_check as a critical pattern interrupt mechanism
+2. ALWAYS include the complete user request with each call
+3. Specify the current phase (planning/implementation/review)
+4. Use vibe_distill as a recalibration anchor when complexity increases
+5. Build the feedback loop with vibe_learn to record resolved issues
+
 ## Project Overview
 
 **Fußball GPT** (formerly KSI Prototype) - A German football intelligence assistant that aggregates real-time Bundesliga data and provides AI-powered analysis for casual fans, expert analysts, betting enthusiasts, and fantasy players.
