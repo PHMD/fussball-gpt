@@ -47,11 +47,23 @@ export default function ChatPage() {
           <div className="text-center text-muted-foreground mt-16">
             <p className="text-lg mb-2">Welcome to Fußball GPT!</p>
             <p className="text-sm mb-6">Ask me anything about Bundesliga...</p>
-            <div className="max-w-2xl mx-auto">
-              <p className="text-xs text-muted-foreground mb-3">Try asking:</p>
+            <div className="max-w-3xl mx-auto">
+              <p className="text-xs text-muted-foreground mb-3">Try asking (English & German):</p>
               <Suggestions className="justify-center">
                 <Suggestion
+                  suggestion="What's the latest Bundesliga news?"
+                  onClick={(text) => {
+                    sendMessage({ text });
+                  }}
+                />
+                <Suggestion
                   suggestion="Was sind die neuesten Bundesliga-Nachrichten?"
+                  onClick={(text) => {
+                    sendMessage({ text });
+                  }}
+                />
+                <Suggestion
+                  suggestion="Show me the current standings"
                   onClick={(text) => {
                     sendMessage({ text });
                   }}
@@ -63,13 +75,13 @@ export default function ChatPage() {
                   }}
                 />
                 <Suggestion
-                  suggestion="Welche Spiele sind heute?"
+                  suggestion="Top scorers this season"
                   onClick={(text) => {
                     sendMessage({ text });
                   }}
                 />
                 <Suggestion
-                  suggestion="Top Torschützen dieser Saison"
+                  suggestion="Welche Spiele sind heute?"
                   onClick={(text) => {
                     sendMessage({ text });
                   }}
