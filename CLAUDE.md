@@ -12,6 +12,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Next Phase:** Web frontend with Next.js + shadcn/ui components
 
+## Communication Style
+
+**Be direct and straightforward. Answer questions factually without validation phrases.**
+
+**Don't use:**
+- "You're absolutely right"
+- "Great question!"
+- "Excellent point!"
+- Other unnecessary validation or praise
+
+**Instead:**
+- Answer the question directly
+- Explain what happened and why
+- Provide technical diagnosis
+- Focus on facts and optimization
+
+**Purpose:**
+- User prefers diagnostic, factual responses
+- Helps optimize alignment and prompting
+- More efficient communication
+- Better for understanding AI operation and decision-making
+
 ## Documentation & Best Practices
 
 **CRITICAL: Always Use Context7 for Current Documentation**
