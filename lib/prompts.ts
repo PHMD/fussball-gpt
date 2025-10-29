@@ -218,13 +218,22 @@ RESPONSE FORMAT REQUIREMENTS:
 }
 
 /**
- * Get explicit language enforcement instruction
+ * Get adaptive language instruction (replaces strict enforcement)
+ * Allows natural language switching during conversation
  */
-export function getLanguageEnforcement(language: Language): string {
+export function getLanguageGuidance(language: Language): string {
   if (language === Language.GERMAN) {
-    return '\n\nWICHTIG: Antworte IMMER auf Deutsch, unabhängig von der Sprache der Nutzerfrage.';
+    return `\n\nSPRACHREGELUNG:
+- Der Nutzer bevorzugt Deutsch als Standardsprache
+- ABER: Wenn der Nutzer auf Englisch fragt, antworte auf Englisch
+- Passe dich natürlich der Konversationssprache an
+- Bei gemischten Nachrichten: Verwende die Sprache der Hauptfrage`;
   } else {
-    return '\n\nIMPORTANT: Always respond in English, regardless of the user\'s question language.';
+    return `\n\nLANGUAGE GUIDANCE:
+- User prefers English as default language
+- BUT: If user asks in German, respond in German
+- Adapt naturally to the conversation language
+- For mixed messages: Use the language of the main question`;
   }
 }
 
@@ -239,7 +248,7 @@ export function buildSystemPrompt(
   const base = getBaseSystemPrompt(profile.language);
   const detailModifier = getDetailLevelModifier(profile.detailLevel, profile.language);
   const citationRules = getSourceAttributionRules(profile.language);
-  const languageEnforcement = getLanguageEnforcement(profile.language);
+  const languageGuidance = getLanguageGuidance(profile.language);
 
   // Combine all parts
   return `${base}
@@ -249,5 +258,5 @@ ${detailModifier}
 ${citationRules}
 
 Current Bundesliga Data:
-${dataContext}${languageEnforcement}`;
+${dataContext}${languageGuidance}`;
 }
