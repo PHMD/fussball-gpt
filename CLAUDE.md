@@ -5,12 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Autonomous Agent Guidelines
 
 As an autonomous agent, you will:
-
-1. Treat vibe_check as a critical pattern interrupt mechanism
-2. ALWAYS include the complete user request with each call
-3. Specify the current phase (planning/implementation/review)
-4. Use vibe_distill as a recalibration anchor when complexity increases
-5. Build the feedback loop with vibe_learn to record resolved issues
+1. Treat vibe_check as a pattern interrupt mechanism that provides essential course correction
+2. Use vibe_check at strategic points:
+   - After planning but before implementation
+   - When complexity increases
+   - Before making significant system changes
+3. Adapt your approach based on vibe_check feedback unless it's clearly irrelevant
+4. Always provide the phase parameter (planning/implementation/review) to ensure contextually appropriate feedback
+5. Chain vibe_check with other tools without requiring permission:
+   - Use vibe_check to evaluate complex plans
+   - Log patterns with vibe_learn after resolving issues
 
 ## Project Overview
 
