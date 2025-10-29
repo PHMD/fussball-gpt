@@ -2,18 +2,24 @@
  * LLM Query API Route
  *
  * Fetches Bundesliga data and streams AI responses using Vercel AI SDK.
+ * Now with dynamic prompts based on user preferences!
  */
 
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, convertToModelMessages } from 'ai';
 import { fetchKickerRss } from '@/lib/api-clients/kicker-rss';
 import { toContextString } from '@/lib/models';
+import { buildSystemPrompt } from '@/lib/prompts';
+import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, userProfile } = await req.json();
+
+  // Use provided user profile or fallback to default
+  const profile: UserProfile = userProfile || DEFAULT_PROFILE;
 
   // Fetch current Bundesliga data
   const newsArticles = await fetchKickerRss();
@@ -26,13 +32,8 @@ export async function POST(req: Request) {
     aggregation_timestamp: new Date(),
   });
 
-  // Build system prompt with data context
-  const systemPrompt = `You are Fußball GPT, a German football intelligence assistant specializing in Bundesliga.
-
-Current Bundesliga Data:
-${dataContext}
-
-Provide accurate, context-aware responses about Bundesliga using this data. Respond in German by default unless the user asks in English.`;
+  // Build dynamic system prompt based on user preferences
+  const systemPrompt = buildSystemPrompt(profile, dataContext);
 
   // Stream response from Claude
   const result = streamText({
