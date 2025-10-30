@@ -32,18 +32,21 @@ async function testLLMEndpoint() {
 
     // Read the streaming response
     const reader = response.body?.getReader();
+    if (!reader) {
+      console.error('❌ Response body is not available');
+      return;
+    }
+
     const decoder = new TextDecoder();
     let fullResponse = '';
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-        const chunk = decoder.decode(value);
-        fullResponse += chunk;
-        process.stdout.write(chunk); // Show streaming in real-time
-      }
+      const chunk = decoder.decode(value);
+      fullResponse += chunk;
+      process.stdout.write(chunk); // Show streaming in real-time
     }
 
     console.log('\n\n✅ Streaming complete!');

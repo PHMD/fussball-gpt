@@ -33,17 +33,20 @@ async function testCORS() {
 
       // Read first few chunks
       const reader = response.body?.getReader();
+      if (!reader) {
+        console.error('❌ Response body is not available');
+        return;
+      }
+
       const decoder = new TextDecoder();
       let chunks = 0;
 
-      if (reader) {
-        console.log('\n📡 Streaming test (first 3 chunks):');
-        while (chunks < 3) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          console.log(`  Chunk ${chunks + 1}:`, decoder.decode(value).substring(0, 50) + '...');
-          chunks++;
-        }
+      console.log('\n📡 Streaming test (first 3 chunks):');
+      while (chunks < 3) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        console.log(`  Chunk ${chunks + 1}:`, decoder.decode(value).substring(0, 50) + '...');
+        chunks++;
       }
     } else {
       console.log('\n❌ CORS failed!');
