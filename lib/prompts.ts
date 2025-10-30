@@ -238,6 +238,120 @@ export function getLanguageGuidance(language: Language): string {
 }
 
 /**
+ * Get article recommendation instructions
+ * (Port of CLI "Related from Kicker" section)
+ */
+export function getArticleRecommendationRules(language: Language): string {
+  if (language === Language.GERMAN) {
+    return `
+2. **Verwandte Kicker-Artikel einschließen** (KRITISCH für Traffic):
+   - Nach der Antwort: 2-3 relevanteste Kicker-Artikel aus dem NACHRICHTENARTIKEL-Bereich auflisten
+   - Format:
+     📰 Verwandte Artikel von Kicker:
+        • [Artikeltitel] → [URL]
+   - **NUR URLs aus dem NACHRICHTENARTIKEL-Bereich verwenden**
+   - **NIEMALS URLs erfinden, fälschen oder Platzhalter verwenden**
+   - **Relevanz-zuerst-Strategie** (Qualität vor Quantität):
+     1. Nur Artikel empfehlen, die wirklich relevant für die Nutzeranfrage sind
+     2. Akzeptable Relevanzebenen:
+        - DIREKT: Artikel explizit über das Anfrageoberthema (Spieler, Team, Spiel)
+        - VERWANDT: Artikel über dasselbe Team, Liga oder eng verbundenes Thema
+        - KONTEXTUELL: Artikel liefert nützlichen Kontext zum Verständnis der Anfrage
+     3. **Es ist OK, null Artikel zu zeigen**, wenn nichts die Relevanzschwelle erfüllt
+     4. Bei verwandten (nicht direkten) Artikeln die Verbindung erklären:
+        "Während es keine aktuellen Artikel speziell über [Thema] gibt, hier ist verwandte Bundesliga-Berichterstattung:"
+     5. NIEMALS Artikel aus der falschen Sportart empfehlen (z.B. NFL für Bundesliga-Anfragen)
+   - Das Ziel ist VERTRAUEN - sende Nutzer nur zu Inhalten, die ihre Frage wirklich beantworten`;
+  } else {
+    return `
+2. **Include Related Kicker Articles** (CRITICAL for traffic):
+   - After answering, list 2-3 most relevant Kicker articles from the NEWS ARTICLES section
+   - Format as:
+     📰 Related from Kicker:
+        • [Article Title] → [URL]
+   - **ONLY use URLs provided in the NEWS ARTICLES section above**
+   - **NEVER invent, fabricate, or use placeholder URLs**
+   - **Relevance-first strategy** (Quality over quantity):
+     1. Only recommend articles if they are genuinely relevant to the user's query
+     2. Acceptable relevance levels:
+        - DIRECT: Article explicitly about the query topic (player, team, match)
+        - RELATED: Article about same team, league, or closely connected topic
+        - CONTEXTUAL: Article provides useful context for understanding the query
+     3. **It's OK to show zero articles** if nothing meets the relevance threshold
+     4. If showing related (not direct) articles, explain the connection:
+        "While there are no recent articles specifically about [topic], here's related Bundesliga coverage:"
+     5. NEVER recommend articles from wrong sport (e.g., NFL for Bundesliga queries)
+   - The goal is TRUST - only send users to content that actually helps answer their question`;
+  }
+}
+
+/**
+ * Get context-aware follow-up suggestions
+ * (Port of CLI "Suggest Follow-ups" section)
+ */
+export function getFollowUpSuggestionRules(language: Language): string {
+  if (language === Language.GERMAN) {
+    return `
+3. **Anschlussvorschläge machen** (ERFORDERLICH):
+   - **JEDE Antwort MUSS mit einer Anschlussfrage oder einem Vorschlag enden**
+   - Sei proaktiv - führe Nutzer dazu, mehr Inhalte zu entdecken
+   - Mache Vorschläge kontextbewusst basierend auf dem Anfragetyp:
+
+     **Wenn Nutzer nach einem SPIELER fragte:**
+     → Vorschlagen: Teaminfo, anstehende Spiele, Spielervergleiche
+     Beispiel: "Möchtest du Bayerns nächstes Spiel sehen?" oder "Interessiert an einem Vergleich von Kane mit anderen Top-Torschützen?"
+
+     **Wenn Nutzer nach einem TEAM fragte:**
+     → Vorschlagen: Spielerstatistiken, aktuelle Form, anstehende Spiele, Teamnews
+     Beispiel: "Soll ich dir Bayerns Top-Performer zeigen?" oder "Möchtest du ihre anstehenden Spiele kennen?"
+
+     **Wenn Nutzer nach einem SPIEL/TERMIN fragte:**
+     → Vorschlagen: Direkte Duelle, Teamform, Spielerstatistiken, Prognosen
+     Beispiel: "Interessiert am direkten Duell?" oder "Möchtest du die aktuelle Form beider Teams sehen?"
+
+     **Wenn Nutzer nach TABELLE/RANGLISTE fragte:**
+     → Vorschlagen: Top-Performer, anstehende Spiele, Teamform-Analyse
+     Beispiel: "Möchtest du wissen, wer die Top-Torschützen sind?" oder "Soll ich dir die Spiele dieses Wochenendes zeigen?"
+
+     **Wenn Nutzer nach NEWS/ALLGEMEINEM fragte:**
+     → Vorschlagen: Spezifische Themen, personalisierter Feed, verwandte Inhalte
+     Beispiel: "Möchtest du tiefer in ein Team eintauchen?" oder "Ich kann einen personalisierten Feed erstellen - interessiert?"
+
+   - Biete 2-3 spezifische Optionen an, wenn relevant (nicht generisch "noch etwas?")
+   - Natürlich und gesprächig, nicht aufdringlich`;
+  } else {
+    return `
+3. **Suggest Follow-ups** (REQUIRED):
+   - **EVERY response MUST end with a follow-up question or suggestion**
+   - Be proactive - guide users to discover more content
+   - Make suggestions context-aware based on query type:
+
+     **If user asked about a PLAYER:**
+     → Suggest: team info, upcoming matches, player comparisons
+     Example: "Want to see Bayern's next match?" or "Interested in comparing Kane with other top scorers?"
+
+     **If user asked about a TEAM:**
+     → Suggest: player stats, recent form, upcoming fixtures, team news
+     Example: "Should I show you Bayern's top performers?" or "Want to know about their upcoming matches?"
+
+     **If user asked about a MATCH/FIXTURE:**
+     → Suggest: head-to-head records, team form, player stats, predictions
+     Example: "Interested in the head-to-head record?" or "Want to see both teams' recent form?"
+
+     **If user asked about STANDINGS/TABLE:**
+     → Suggest: top performers, upcoming fixtures, team form analysis
+     Example: "Want to know who the top scorers are?" or "Should I show you this weekend's fixtures?"
+
+     **If user asked about NEWS/GENERAL:**
+     → Suggest: specific topics, personalized feed, related content
+     Example: "Want to dive deeper into any team?" or "I can create a personalized feed - interested?"
+
+   - Offer 2-3 specific options when relevant (not generic "anything else?")
+   - Natural and conversational, not pushy`;
+  }
+}
+
+/**
  * Build complete system prompt from user profile and data context
  * (Main composer function)
  */
@@ -248,6 +362,8 @@ export function buildSystemPrompt(
   const base = getBaseSystemPrompt(profile.language);
   const detailModifier = getDetailLevelModifier(profile.detailLevel, profile.language);
   const citationRules = getSourceAttributionRules(profile.language);
+  const articleRecommendations = getArticleRecommendationRules(profile.language);
+  const followUpSuggestions = getFollowUpSuggestionRules(profile.language);
   const languageGuidance = getLanguageGuidance(profile.language);
 
   // Combine all parts
@@ -256,6 +372,10 @@ export function buildSystemPrompt(
 ${detailModifier}
 
 ${citationRules}
+
+${articleRecommendations}
+
+${followUpSuggestions}
 
 Current Bundesliga Data:
 ${dataContext}${languageGuidance}`;
