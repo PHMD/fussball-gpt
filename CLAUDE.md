@@ -48,8 +48,8 @@ Need Documentation?
 
 Planning?
 ├─ Feature Planning → Vibe-Check (validate approach)
-├─ Sprint Planning → Linear (organize issues, cycles) or GitHub Issues (solo)
-└─ Task Tracking → GitHub Issues (current workflow)
+├─ Sprint Planning → Linear (primary, organize issues, cycles)
+└─ Task Tracking → Linear (primary) + GitHub Issues (optional for git linking)
 
 Testing?
 ├─ E2E Tests → Playwright (already using for bilingual-support.spec.ts)
@@ -125,34 +125,18 @@ const result = await streamText({ ... });  // Might be outdated
 
 ## Project Management & Git Workflow
 
-**GitHub Issues and Regular Commits**
+**Issue Tracking: Linear primary, GitHub optional**
 
-To maintain better traceability and project management:
+- **Linear** (PHM-XX): All project management, planning, tracking
+- **GitHub Issues** (optional): For git commit linking only
+- **Commits**: Always include Linear ID (PHM-XX), optionally GitHub (#XX)
 
-1. **Create or update GitHub issues** as we work on tasks
-   - Document what you're working on
-   - Link commits to issues with keywords (e.g., "Fixes #123", "Closes #45")
-   - Track progress and decisions
-
-2. **Commit regularly** for better git history
-   - Commit after completing logical units of work
-   - Use descriptive commit messages following project conventions
-   - Include issue references in commit messages
-   - Push frequently to keep remote in sync
-
-3. **Issue workflow:**
-   - Start work → Create/update issue with task details
-   - During work → Reference issue in commits
-   - Complete work → Close issue with final commit
-   - Document decisions and blockers in issue comments
-
-**Example commit message:**
+**Example commit:**
 ```bash
-git commit -m "feat: Add suggestion component - Fixes #42
+git commit -m "feat: Feature name - PHM-50
 
-- Created interactive suggestion buttons
-- Integrated with chat interface
-- Added German-language prompts
+- Bullet points
+- What changed
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 Co-Authored-By: Claude <noreply@anthropic.com>"
