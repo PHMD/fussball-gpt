@@ -63,24 +63,34 @@ export const InlineCitationCardTrigger = ({
   sources,
   className,
   ...props
-}: InlineCitationCardTriggerProps) => (
-  <HoverCardTrigger asChild>
-    <Badge
-      className={cn('ml-1 rounded-full', className)}
-      variant="secondary"
-      {...props}
-    >
-      {sources.length ? (
-        <>
-          {new URL(sources[0]).hostname}{' '}
-          {sources.length > 1 && `+${sources.length - 1}`}
-        </>
-      ) : (
-        'unknown'
-      )}
-    </Badge>
-  </HoverCardTrigger>
-);
+}: InlineCitationCardTriggerProps) => {
+  const getHostname = (url: string) => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'unknown';
+    }
+  };
+
+  return (
+    <HoverCardTrigger asChild>
+      <Badge
+        className={cn('ml-1 rounded-full', className)}
+        variant="secondary"
+        {...props}
+      >
+        {sources.length ? (
+          <>
+            {getHostname(sources[0])}{' '}
+            {sources.length > 1 && `+${sources.length - 1}`}
+          </>
+        ) : (
+          'unknown'
+        )}
+      </Badge>
+    </HoverCardTrigger>
+  );
+};
 
 export type InlineCitationCardBodyProps = ComponentProps<'div'>;
 

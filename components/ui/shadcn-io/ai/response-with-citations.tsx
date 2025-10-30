@@ -54,11 +54,13 @@ export function ResponseWithCitations({
               <InlineCitationCard>
                 <InlineCitationCardTrigger sources={[citation.url || '']} />
                 <InlineCitationCardBody>
-                  <InlineCitationSource
-                    title={citation.source}
-                    url={citation.url || ''}
-                    description={citation.description}
-                  />
+                  <div className="p-4">
+                    <InlineCitationSource
+                      title={citation.source}
+                      url={citation.url || ''}
+                      description={citation.description}
+                    />
+                  </div>
                 </InlineCitationCardBody>
               </InlineCitationCard>
             </InlineCitation>
