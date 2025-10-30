@@ -11,6 +11,7 @@ import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
 import { fetchKickerRss } from '@/lib/api-clients/kicker-rss';
+import { fetchKickerArticlesBrave } from '@/lib/api-clients/brave-search';
 import { fetchPlayerStats, fetchInjuries } from '@/lib/api-clients/api-football';
 import {
   fetchBundesligaStandings,
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   // Fetch all Bundesliga data sources in parallel
   const [
-    newsArticles,
+    rssArticles,
     playerStats,
     injuries,
     standings,
@@ -73,6 +74,20 @@ export async function POST(req: NextRequest) {
     fetchTeamForm(),
     fetchBettingOdds(),
   ]);
+
+  // Augment with Brave Search if RSS articles are insufficient (<10)
+  // This gives access to entire kicker.de archive, not just recent RSS
+  let newsArticles = rssArticles;
+  if (rssArticles.length < 10 && process.env.BRAVE_SEARCH_API_KEY) {
+    console.log('[Augmenting with Brave Search...]');
+
+    // Extract user query from last message
+    const lastMessage = messages[messages.length - 1];
+    const userQuery = lastMessage?.content || 'Bundesliga';
+
+    const braveArticles = await fetchKickerArticlesBrave(userQuery, 5);
+    newsArticles = [...rssArticles, ...braveArticles];
+  }
 
   // Build context string for LLM with all data sources
   const dataContext = toContextString({
