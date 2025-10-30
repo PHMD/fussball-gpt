@@ -99,8 +99,9 @@ export async function fetchKickerArticlesBrave(
   try {
     // Search kicker.de specifically for Bundesliga content
     const searchQuery = `site:kicker.de Bundesliga ${query}`;
+    const url = `${BRAVE_SEARCH_BASE_URL}?q=${encodeURIComponent(searchQuery)}`;
 
-    const response = await fetch(BRAVE_SEARCH_BASE_URL, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

@@ -6,7 +6,7 @@
  */
 
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText, convertToModelMessages } from 'ai';
+import { streamText } from 'ai';
 import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
@@ -51,14 +51,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { messages, userProfile } = await req.json();
+  const body = await req.json();
+  const { messages, userProfile } = body;
+
+  // Validate request structure
+  if (!messages || !Array.isArray(messages)) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid messages format' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
   // Use provided user profile or fallback to default
   const profile: UserProfile = userProfile || DEFAULT_PROFILE;
 
-  // Fetch all Bundesliga data sources in parallel
+  // Fetch Bundesliga data sources (excluding news - handled separately below)
   const [
-    rssArticles,
     playerStats,
     injuries,
     standings,
@@ -66,7 +77,6 @@ export async function POST(req: NextRequest) {
     teamForm,
     bettingOdds,
   ] = await Promise.all([
-    fetchKickerRss(),
     fetchPlayerStats(),
     fetchInjuries(),
     fetchBundesligaStandings(),
@@ -75,18 +85,41 @@ export async function POST(req: NextRequest) {
     fetchBettingOdds(),
   ]);
 
-  // Augment with Brave Search if RSS articles are insufficient (<10)
-  // This gives access to entire kicker.de archive, not just recent RSS
-  let newsArticles = rssArticles;
-  if (rssArticles.length < 10 && process.env.BRAVE_SEARCH_API_KEY) {
-    console.log('[Augmenting with Brave Search...]');
+  // News source strategy: Brave Search primary (query-specific, 8.5x more content)
+  // Falls back to RSS if Brave unavailable/fails, then empty array if both fail
+  let newsArticles = [];
 
-    // Extract user query from last message
-    const lastMessage = messages[messages.length - 1];
-    const userQuery = lastMessage?.content || 'Bundesliga';
+  // Extract user query from last message for query-specific search
+  const lastMessage = messages[messages.length - 1];
+  const userQuery = lastMessage?.content || 'Bundesliga';
 
-    const braveArticles = await fetchKickerArticlesBrave(userQuery, 5);
-    newsArticles = [...rssArticles, ...braveArticles];
+  // Try Brave Search first (primary source)
+  if (process.env.BRAVE_SEARCH_API_KEY) {
+    try {
+      console.log('🔍 Fetching from Brave Search (primary source)...');
+      newsArticles = await fetchKickerArticlesBrave(userQuery, 10);
+      console.log(`✓ Brave Search: ${newsArticles.length} articles`);
+    } catch (error) {
+      console.error('⚠️ Brave Search failed:', error);
+      console.log('→ Falling back to RSS...');
+      try {
+        newsArticles = await fetchKickerRss();
+        console.log(`✓ RSS fallback: ${newsArticles.length} articles`);
+      } catch (rssError) {
+        console.error('⚠️ RSS also failed:', rssError);
+        console.log('→ No news available, AI will handle gracefully');
+      }
+    }
+  } else {
+    // No Brave API key - use RSS fallback
+    console.log('📰 Using RSS (no Brave API key configured)');
+    try {
+      newsArticles = await fetchKickerRss();
+      console.log(`✓ RSS: ${newsArticles.length} articles`);
+    } catch (rssError) {
+      console.error('⚠️ RSS failed:', rssError);
+      console.log('→ No news available, AI will handle gracefully');
+    }
   }
 
   // Build context string for LLM with all data sources
@@ -137,7 +170,7 @@ export async function POST(req: NextRequest) {
   const result = streamText({
     model: anthropic('claude-sonnet-4-20250514'),
     system: systemPrompt,
-    messages: convertToModelMessages(messages),
+    messages,
     onError({ error }) {
       console.error('AI SDK Error:', error);
     },
