@@ -107,8 +107,8 @@ export default function ChatPage() {
       </header>
 
       {/* Chat Messages */}
-      <Conversation className="flex-1" style={{ minHeight: 0 }}>
-        <ConversationContent>
+      <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
+        <ConversationContent className="max-w-4xl mx-auto pb-48">
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-16">
             <p className="text-lg mb-2">
@@ -216,11 +216,15 @@ export default function ChatPage() {
           </Message>
         )}
         </ConversationContent>
+
+        {/* Fade effect overlay - positioned above content */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
+
         <ConversationScrollButton />
       </Conversation>
 
-      {/* Input */}
-      <div className="border-t p-4 bg-card">
+      {/* Floating Input */}
+      <div className="fixed bottom-12 left-0 right-0 z-10 px-4">
         <div className="max-w-4xl mx-auto">
           <PromptInput
             value={input}
@@ -252,11 +256,6 @@ export default function ChatPage() {
               </Button>
             </PromptInputActions>
           </PromptInput>
-          <p className="text-xs text-muted-foreground mt-3 text-center">
-            {isGerman
-              ? 'Angetrieben von Vercel AI SDK + Claude 4 Sonnet'
-              : 'Powered by Vercel AI SDK + Claude 4 Sonnet'}
-          </p>
         </div>
       </div>
     </div>

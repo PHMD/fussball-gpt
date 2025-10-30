@@ -105,21 +105,29 @@ export function ResponseWithCitations({
         </ReactMarkdown>
       </div>
 
-      {/* Sources Section */}
-      {parsed.citations.length > 0 && (
-        <div className="border-t pt-6 mt-8">
-          <h3 className="text-base font-semibold mb-4">{labels.sources}</h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {parsed.citations.map((citation) => (
-              <CitationSourceCard
-                key={citation.citationNumber}
-                citation={citation}
-                language={language}
-              />
-            ))}
+      {/* Sources Section - Only show article sources, not background APIs */}
+      {(() => {
+        // Filter out background API sources (API-Football, TheSportsDB, The Odds API)
+        const backgroundAPIs = ['API-Football', 'TheSportsDB', 'The Odds API'];
+        const articleCitations = parsed.citations.filter(
+          (citation) => !backgroundAPIs.includes(citation.source)
+        );
+
+        return articleCitations.length > 0 ? (
+          <div className="border-t pt-6 mt-8">
+            <h3 className="text-base font-semibold mb-4">{labels.sources}</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {articleCitations.map((citation) => (
+                <CitationSourceCard
+                  key={citation.citationNumber}
+                  citation={citation}
+                  language={language}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
     </div>
   );
 }

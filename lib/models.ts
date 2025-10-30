@@ -20,6 +20,9 @@ export const NewsArticleSchema = z.object({
   title: z.string(),
   content: z.string(),
   url: z.string().optional(),
+  image_url: z.string().optional(),
+  favicon_url: z.string().optional(),
+  age: z.string().optional(), // Human-readable age like "1 day ago"
   timestamp: z.date(),
   author: z.string().optional(),
   category: z.string().optional(),
@@ -112,6 +115,15 @@ export function toContextString(data: AggregatedData): string {
       lines.push(`Source: ${article.source}`);
       if (article.url) {
         lines.push(`URL: ${article.url}`);
+      }
+      if (article.image_url) {
+        lines.push(`Image URL: ${article.image_url}`);
+      }
+      if (article.favicon_url) {
+        lines.push(`Favicon URL: ${article.favicon_url}`);
+      }
+      if (article.age) {
+        lines.push(`Age: ${article.age}`);
       }
       // Truncate content for context
       const truncatedContent = article.content.substring(0, 500);

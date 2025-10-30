@@ -9,6 +9,9 @@ export interface Citation {
   text: string; // The cited text segment
   source: string; // Source name (e.g., "API-Football")
   url?: string; // Optional source URL
+  imageUrl?: string; // Optional thumbnail image URL
+  faviconUrl?: string; // Optional favicon URL
+  age?: string; // Optional age like "1 day ago"
   description?: string; // Optional source description
   citationNumber?: number; // Sequential number for citation (1, 2, 3, etc.)
 }
@@ -91,13 +94,46 @@ export function parseCitations(text: string): ParsedResponse {
     const citationEnd = citationRegex.lastIndex;
     const rawSource = match[1];
 
-    // Extract URL if present (format: "Source Name https://...")
+    // Extract URL, image URL, favicon URL, and age
+    // Format: "Source Name URL [ImageURL] [FaviconURL] [Age]"
     let sourceName = rawSource;
     let sourceUrl: string | undefined;
-    const urlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
-    if (urlMatch) {
-      sourceName = urlMatch[1].trim();
-      sourceUrl = urlMatch[2];
+    let imageUrl: string | undefined;
+    let faviconUrl: string | undefined;
+    let age: string | undefined;
+
+    // Try to match full format: "Source Name URL ImageURL FaviconURL Age"
+    const fullMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(.+)$/);
+    if (fullMatch) {
+      sourceName = fullMatch[1].trim();
+      sourceUrl = fullMatch[2];
+      imageUrl = fullMatch[3];
+      faviconUrl = fullMatch[4];
+      age = fullMatch[5].trim();
+    } else {
+      // Try format with 3 URLs: "Source Name URL ImageURL FaviconURL"
+      const threeUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+      if (threeUrlMatch) {
+        sourceName = threeUrlMatch[1].trim();
+        sourceUrl = threeUrlMatch[2];
+        imageUrl = threeUrlMatch[3];
+        faviconUrl = threeUrlMatch[4];
+      } else {
+        // Try format with 2 URLs: "Source Name URL ImageURL"
+        const twoUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+        if (twoUrlMatch) {
+          sourceName = twoUrlMatch[1].trim();
+          sourceUrl = twoUrlMatch[2];
+          imageUrl = twoUrlMatch[3];
+        } else {
+          // Fallback to single URL: "Source Name URL"
+          const singleUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
+          if (singleUrlMatch) {
+            sourceName = singleUrlMatch[1].trim();
+            sourceUrl = singleUrlMatch[2];
+          }
+        }
+      }
     }
 
     // Find the sentence or clause before the citation
@@ -149,6 +185,9 @@ export function parseCitations(text: string): ParsedResponse {
           text: citedText,
           source: sourceName,
           url: finalUrl,
+          imageUrl: imageUrl, // Include image URL if present
+          faviconUrl: faviconUrl, // Include favicon URL if present
+          age: age, // Include age if present
           description: metadata.description || 'Article from Brave Search',
           citationNumber: citationCounter,
         };

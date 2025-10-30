@@ -131,7 +131,7 @@ ANTWORTFORMAT-ANFORDERUNGEN:
    - Spielerstatistiken (Tore, Vorlagen, Minuten) = "via API-Football"
    - Tabellenstände, Punkte, Torverhältnis = "via TheSportsDB"
    - Teamform (S-U-N-Aufzeichnungen) = "via TheSportsDB"
-   - Nachrichtenartikel (aus NACHRICHTENARTIKEL-Bereich) = "via [Artikeltitel] [Artikel-URL]" (MUSS sowohl Titel ALS AUCH URL enthalten)
+   - Nachrichtenartikel (aus NACHRICHTENARTIKEL-Bereich) = "via [Artikeltitel] [Artikel-URL] [Bild-URL] [Favicon-URL] [Alter]" (MUSS alle verfügbaren Felder enthalten)
    - Spielpläne/Ergebnisse = "via TheSportsDB"
    - Wettquoten = "via The Odds API"
    - Verletzungsdaten = "via API-Football"
@@ -139,10 +139,11 @@ ANTWORTFORMAT-ANFORDERUNGEN:
    **KRITISCH: Für ALLE Nachrichtenartikel:**
    - JEDER Artikel MUSS eine separate Zitation haben
    - NIEMALS alle Artikel unter "Kicker RSS" oder "Kicker" gruppieren
-   - Format: "via [Genauer Artikeltitel aus NACHRICHTENARTIKEL] [Vollständige URL aus NACHRICHTENARTIKEL]"
-   - Beispiel: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/tv-rechte-dazn..."
+   - Format: "via [Genauer Artikeltitel] [URL] [Image URL] [Favicon URL] [Age]"
+   - Beispiel: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/... https://imgs.search.brave.com/...image https://imgs.search.brave.com/...favicon 1 day ago"
+   - Schließe ALLE verfügbaren Felder ein (Image URL, Favicon URL, Age sind optional, aber wenn im Kontext vorhanden, einschließen)
    - Dies ermöglicht Nutzern zu sehen, aus WELCHEM SPEZIFISCHEN ARTIKEL die Information stammt
-   - Wenn 5 verschiedene Artikel erwähnt werden, sollte es 5 separate Zitationen mit 5 verschiedenen Titeln und URLs geben
+   - Wenn 5 verschiedene Artikel erwähnt werden, sollte es 5 separate Zitationen geben
 
    **Beispiele für korrekte Zitierung:**
 
@@ -187,7 +188,7 @@ RESPONSE FORMAT REQUIREMENTS:
    - Player stats (goals, assists, minutes) = "via API-Football"
    - Standings, points, goal difference = "via TheSportsDB"
    - Team form (W-D-L records) = "via TheSportsDB"
-   - News articles (from NEWS ARTICLES section) = "via [Article Title] [Article URL]" (MUST include both title AND URL)
+   - News articles (from NEWS ARTICLES section) = "via [Article Title] [Article URL] [Image URL] [Favicon URL] [Age]" (MUST include all available fields)
    - Match schedules/results = "via TheSportsDB"
    - Betting odds = "via The Odds API"
    - Injury data = "via API-Football"
@@ -195,10 +196,11 @@ RESPONSE FORMAT REQUIREMENTS:
    **CRITICAL: For ALL News Articles:**
    - EVERY article MUST have a separate citation
    - NEVER group all articles under "Kicker RSS" or "Kicker"
-   - Format: "via [Exact Article Title from NEWS ARTICLES] [Full URL from NEWS ARTICLES]"
-   - Example: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/tv-rechte-dazn..."
+   - Format: "via [Exact Article Title] [URL] [Image URL] [Favicon URL] [Age]"
+   - Example: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/... https://imgs.search.brave.com/...image https://imgs.search.brave.com/...favicon 1 day ago"
+   - Include ALL available fields (Image URL, Favicon URL, Age are optional but include them if present in context)
    - This allows users to see WHICH SPECIFIC ARTICLE the information came from
-   - If 5 different articles are mentioned, there should be 5 separate citations with 5 different titles and URLs
+   - If 5 different articles are mentioned, there should be 5 separate citations
 
    **Examples of proper citation:**
 

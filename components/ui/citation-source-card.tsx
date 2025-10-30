@@ -1,12 +1,12 @@
 /**
  * Citation Source Card Component
  *
- * Displays a citation source with shadcn/ui Card component.
- * Includes source badge, title, description, and clickable URL.
+ * Compact citation card matching ChatGPT-style design.
+ * Shows thumbnail image, domain/source, and wrapping title.
+ * Entire card is clickable to open article in new tab.
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
-import { Badge } from './badge';
+import { Card, CardContent, CardTitle } from './card';
 import { ExternalLink } from 'lucide-react';
 import type { Citation } from '@/lib/utils/parse-citations';
 
@@ -16,52 +16,72 @@ export interface CitationSourceCardProps {
 }
 
 export function CitationSourceCard({ citation, language = 'en' }: CitationSourceCardProps) {
-  const { citationNumber, source, url, description } = citation;
+  const { citationNumber, source, url, imageUrl, faviconUrl, age } = citation;
 
-  // Determine source type for badge
-  const getBadgeText = () => {
-    if (source === 'API-Football') return 'API';
-    if (source === 'TheSportsDB') return 'API';
-    if (source === 'The Odds API') return 'API';
-    // For Kicker articles (those with kicker.de URLs), show "Kicker"
-    if (url && url.includes('kicker.de')) return 'Kicker';
-    // Default to article source
-    return 'News';
+  // Extract domain from URL for display
+  const getDomain = () => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace('www.', '');
+    } catch {
+      return null;
+    }
   };
 
+  const domain = getDomain();
+
   return (
-    <Card id={`citation-${citationNumber}`} className="scroll-mt-4 min-w-[300px] max-w-[300px] shrink-0">
-      <CardHeader className="py-2 px-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                [{citationNumber}]
-              </span>
-              <span className="truncate">{source}</span>
-            </CardTitle>
-            {description && (
-              <CardDescription className="mt-0.5 text-xs line-clamp-1">{description}</CardDescription>
-            )}
-          </div>
-          <Badge variant="secondary" className="shrink-0 text-xs px-1.5 py-0">
-            {getBadgeText()}
-          </Badge>
+    <Card
+      id={`citation-${citationNumber}`}
+      className="scroll-mt-4 min-w-[220px] max-w-[220px] shrink-0 overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
+    >
+      {imageUrl && (
+        <div className="relative w-full h-36 bg-muted">
+          <img
+            src={imageUrl}
+            alt={source}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Hide image if it fails to load
+              e.currentTarget.parentElement!.style.display = 'none';
+            }}
+          />
         </div>
-      </CardHeader>
-      {url && (
-        <CardContent className="pt-0 pb-2 px-3">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <ExternalLink className="h-3 w-3 shrink-0" />
-            <span className="truncate">{url}</span>
-          </a>
-        </CardContent>
       )}
+      <CardContent className="p-2.5 space-y-1.5 flex flex-col min-h-[140px]">
+        {/* Domain/Source at top with favicon */}
+        {domain && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {faviconUrl ? (
+              <img
+                src={faviconUrl}
+                alt=""
+                className="h-3 w-3 shrink-0"
+                onError={(e) => {
+                  // Fallback to ExternalLink icon if favicon fails
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.insertAdjacentHTML('afterend', '<svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>');
+                }}
+              />
+            ) : (
+              <ExternalLink className="h-3 w-3 shrink-0" />
+            )}
+            <span className="font-medium">{domain}</span>
+          </div>
+        )}
+
+        {/* Title - truncate after 3 lines */}
+        <CardTitle className="text-sm leading-snug line-clamp-3 flex-1">
+          {source}
+        </CardTitle>
+
+        {/* Age fixed at bottom */}
+        {age && (
+          <p className="text-xs text-muted-foreground">{age}</p>
+        )}
+      </CardContent>
     </Card>
   );
 }
