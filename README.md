@@ -125,6 +125,89 @@ property of their respective owners.
 - Powered by Kicker.de news
 - Real-time data from TheSportsDB & API-Football
 
+## 🧪 Development Commands
+
+### Backend (Python)
+
+**Setup:**
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+**Data Aggregation Test:**
+```bash
+source venv/bin/activate
+python data_aggregator.py
+```
+
+**Feature-Specific Tests:**
+```bash
+# Test form guide integration
+python test_form_guide.py
+
+# Test H2H records
+python test_h2h.py
+
+# Test betting odds (requires ODDS_API_KEY)
+python test_betting_odds.py
+
+# Test user config integration
+python test_user_config_integration.py
+
+# Test language/detail levels
+python test_language_detail_levels.py
+```
+
+**User Onboarding:**
+```bash
+# Interactive setup for language & detail preferences
+python onboarding.py
+```
+
+**Testing:**
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_data_aggregator.py
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+```
+
+### Frontend (Next.js)
+
+**Setup:**
+```bash
+npm install
+```
+
+**Development:**
+```bash
+npm run dev
+```
+
+**Testing:**
+```bash
+# Run Playwright E2E tests
+npx playwright test
+
+# Run with UI
+npx playwright test --ui
+```
+
+**Build:**
+```bash
+npm run build
+npm start
+```
+
 ## 📊 Beta Test Results
 
 **Ready for beta launch:** ✅
