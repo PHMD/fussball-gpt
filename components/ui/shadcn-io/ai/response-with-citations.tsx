@@ -35,7 +35,7 @@ export function ResponseWithCitations({
 
   // Render with citations
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {parsed.segments.map((segment, index) => {
         if (segment.type === 'text') {
           return (
@@ -45,10 +45,10 @@ export function ResponseWithCitations({
           );
         }
 
-        // Citation segment
+        // Citation segment - render InlineCitation directly without Response wrapper
         const citation = segment.citation!;
         return (
-          <Response key={index} {...props}>
+          <div key={index} className="inline">
             <InlineCitation>
               <InlineCitationText>{segment.content}</InlineCitationText>
               <InlineCitationCard>
@@ -62,7 +62,7 @@ export function ResponseWithCitations({
                 </InlineCitationCardBody>
               </InlineCitationCard>
             </InlineCitation>
-          </Response>
+          </div>
         );
       })}
     </div>
