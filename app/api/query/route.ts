@@ -7,6 +7,9 @@
 
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamText, convertToModelMessages } from 'ai';
+import { NextRequest } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { kv } from '@vercel/kv';
 import { fetchKickerRss } from '@/lib/api-clients/kicker-rss';
 import { toContextString } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompts';
@@ -15,7 +18,26 @@ import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
 
-export async function POST(req: Request) {
+// Rate limiting: 5 requests per 30 seconds per IP
+const ratelimit = new Ratelimit({
+  redis: kv,
+  limiter: Ratelimit.fixedWindow(5, '30s'),
+});
+
+export async function POST(req: NextRequest) {
+  // Rate limiting check
+  const ip = req.ip ?? 'anonymous';
+  const { success } = await ratelimit.limit(ip);
+
+  if (!success) {
+    return new Response('Rate limited! Please try again in 30 seconds.', {
+      status: 429,
+      headers: {
+        'Retry-After': '30',
+      },
+    });
+  }
+
   const { messages, userProfile } = await req.json();
 
   // Use provided user profile or fallback to default
