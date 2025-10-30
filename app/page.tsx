@@ -9,7 +9,7 @@ import {
   PromptInputActions,
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
-import { SendIcon, Loader2Icon, SquareIcon } from 'lucide-react';
+import { ArrowUpIcon, SquareIcon } from 'lucide-react';
 import { Response } from '@/components/ui/response';
 import { Loader } from '@/components/ui/loader';
 import { Suggestions, Suggestion } from '@/components/ui/suggestion';
@@ -242,15 +242,14 @@ export default function ChatPage() {
               <Button
                 type="submit"
                 size="icon"
+                className="h-8 w-8 rounded-full"
                 disabled={!input.trim() || status !== 'ready'}
                 onClick={handleSubmit}
               >
-                {status === 'submitted' ? (
-                  <Loader2Icon className="size-4 animate-spin" />
-                ) : status === 'streaming' ? (
-                  <SquareIcon className="size-4" />
+                {status === 'submitted' || status === 'streaming' ? (
+                  <SquareIcon className="size-5 fill-current" />
                 ) : (
-                  <SendIcon className="size-4" />
+                  <ArrowUpIcon className="size-5" />
                 )}
               </Button>
             </PromptInputActions>
