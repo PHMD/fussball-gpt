@@ -20,11 +20,11 @@ As an autonomous agent, you will:
 
 **Fußball GPT** (formerly KSI Prototype) - A German football intelligence assistant that aggregates real-time Bundesliga data and provides AI-powered analysis for casual fans, expert analysts, betting enthusiasts, and fantasy players.
 
-**Current Status:** Beta-ready (9.1/10 quality) with all quick wins implemented
+**Current Status:** Beta-ready (9.1/10 quality) with web frontend deployed
 
 **Architecture Pattern:** Three-layer system (Data Aggregation → AI Processing → Interface)
 
-**Next Phase:** Web frontend with Next.js + shadcn/ui components
+**Current Implementation:** Next.js 15 web frontend with bilingual support, streaming chat, and rate limiting
 
 ## 🎯 MCP Decision Tree
 
@@ -229,11 +229,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - Anthropic Claude Sonnet 4.5 (primary LLM)
 - JSON-based caching
 
-**Frontend (Next Phase):**
-- Next.js 14+ (App Router)
-- TypeScript
+**Frontend (Production):**
+- Next.js 15.5.6 (App Router)
+- TypeScript (strict mode)
 - Tailwind CSS
 - shadcn/ui components
+- Vercel AI SDK
 - Vercel deployment
 
 ## Development Commands
@@ -417,71 +418,94 @@ ODDS_API_KEY=your_key_here       # The Odds API (FREE tier 500 req/mo)
 - `cache/betting_odds.json`
 - `cache/head_to_head.json`
 
-## Frontend Planning (Next Phase)
+## Current Frontend Architecture
 
-### Goals
+### Tech Stack (Production)
 
-1. **Web-based interface** for Fußball GPT
-2. **Modern UI** with shadcn/ui components
-3. **Real-time interaction** with backend data
-4. **Responsive design** for mobile + desktop
-5. **AI-native UX** (chat interface, streaming responses)
-
-### Tech Stack (Planned)
-
-**Framework:** Next.js 14+ (App Router)
-**Language:** TypeScript
+**Framework:** Next.js 15.5.6 (App Router)
+**Language:** TypeScript (strict mode)
 **Styling:** Tailwind CSS
-**Components:** shadcn/ui (AI-optimized components)
+**Components:** shadcn/ui (customized for AI chat)
+**AI Integration:** Vercel AI SDK (`ai`, `@ai-sdk/anthropic`)
+**State Management:** React hooks + localStorage
+**Testing:** Playwright E2E
 **Deployment:** Vercel
-**Backend Integration:** API routes → Python backend
 
-### Component Planning Strategy
+### Core Features
 
-**Use shadcn agent** to identify:
-1. AI-specific components (chat interfaces, streaming text)
-2. Sports data visualization components
-3. Form components (user preferences)
-4. Layout components (responsive design)
+1. **Bilingual Support (PHM-29)**
+   - Language selection (German/English)
+   - Detail levels (Quick/Balanced/Detailed)
+   - Persona selection (Casual/Expert/Betting/Fantasy)
+   - User preferences persist in localStorage
 
-**Workflow:**
-1. Review AI component patterns (chat, streaming, markdown)
-2. Map backend features → UI components
-3. Create component hierarchy
-4. Plan testing strategy (Playwright/Cypress)
-5. Implement on feature branch
+2. **Chat Interface**
+   - Streaming responses from Claude Sonnet 4
+   - ReactMarkdown rendering with syntax highlighting
+   - Message history with role-based styling
+   - Suggestion buttons for common queries
 
-### Backend API Layer (Required)
+3. **User Experience**
+   - 3-step onboarding dialog (first visit)
+   - Settings panel (accessible anytime)
+   - Responsive design (mobile + desktop)
+   - Loading states with stop button
 
-**Create:** FastAPI or Next.js API routes
+4. **Security (October 2025)**
+   - Rate limiting (5 req/30s per IP) - PHM-44 ✅
+   - Vercel deployment protection (planned) - PHM-43
+   - Input validation (pending) - PHM-45
 
-**Endpoints needed:**
-- `GET /api/data` - Aggregated sports data
-- `POST /api/query` - LLM query with streaming
-- `GET /api/config` - User preferences
-- `POST /api/config` - Update preferences
-- `GET /api/health` - API health check
+### Key Components
 
-**Integration pattern:**
+**App Structure:**
+- `app/page.tsx` - Main chat interface
+- `app/layout.tsx` - Root layout with fonts
+- `app/api/query/route.ts` - Streaming LLM API (with rate limiting)
+
+**UI Components:**
+- `components/ui/response.tsx` - Markdown rendering (XSS-safe)
+- `components/ui/prompt-input.tsx` - Chat input with toolbar
+- `components/ui/suggestion.tsx` - Query suggestion buttons
+- `components/ui/loader.tsx` - Loading spinner
+- `components/onboarding/welcome-dialog.tsx` - First-time setup
+- `components/settings/settings-panel.tsx` - User preferences
+
+**Utilities:**
+- `lib/prompts.ts` - Dynamic prompt builder (bilingual)
+- `lib/user-config.ts` - User profile types + defaults
+- `lib/models.ts` - Zod schemas for data validation
+- `lib/cache.ts` - Vercel KV caching utilities
+- `hooks/use-user-preferences.ts` - Preference management hook
+
+### Data Flow
+
 ```
-Next.js Frontend
-    ↓ (API route)
-Python Backend (data_aggregator.py)
+User Input
     ↓
-LLM (Anthropic Claude)
+Frontend (app/page.tsx)
+    ↓ (userProfile + messages)
+API Route (app/api/query/route.ts)
+    ↓ (rate limit check)
+Kicker RSS Feed (lib/api-clients/kicker-rss.ts)
+    ↓ (data context)
+Dynamic Prompt Builder (lib/prompts.ts)
     ↓
-Streaming response → Frontend
+Claude Sonnet 4 (Anthropic)
+    ↓ (streaming)
+ReactMarkdown (components/ui/response.tsx)
+    ↓
+User sees formatted response
 ```
 
-### Development Approach
+### Current Gaps (October 2025)
 
-1. **Branch:** Create `frontend` branch
-2. **Setup:** Initialize Next.js with TypeScript + Tailwind
-3. **Components:** Research with shadcn agent
-4. **API Layer:** Build FastAPI or Next.js API routes
-5. **Integration:** Connect frontend → API → Python backend
-6. **Testing:** E2E tests with real data
-7. **Deploy:** Vercel preview deployment
+**Data Sources:** Only using 1 of 4 available sources (Kicker RSS)
+- ❌ TheSportsDB (standings, fixtures, form, H2H)
+- ❌ API-Football (player stats, injuries)
+- ❌ The Odds API (betting odds)
+
+**See:** PHM-47 for backend integration plan
 
 ---
 
