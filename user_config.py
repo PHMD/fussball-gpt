@@ -18,11 +18,20 @@ class Language(str, Enum):
     ENGLISH = "en"
 
 
+class Persona(str, Enum):
+    """User persona types with different content preferences."""
+    CASUAL_FAN = "casual_fan"  # Quick highlights, simple presentation
+    EXPERT_ANALYST = "expert_analyst"  # Tactical depth, analysis prioritized
+    BETTING_ENTHUSIAST = "betting_enthusiast"  # Stats, odds, form data
+    FANTASY_PLAYER = "fantasy_player"  # Player stats, performance data
+
+
 class UserProfile(BaseModel):
     """User preferences and profile."""
     detail_level: DetailLevel = DetailLevel.BALANCED
     language: Language = Language.GERMAN
     name: str = "User"
+    persona: Persona = Persona.CASUAL_FAN
 
     # Personalization
     favorite_team: str = ""
@@ -64,6 +73,11 @@ class UserConfigManager:
     def update_language(self, language: Language):
         """Update and save language preference."""
         self.profile.language = language
+        self.save_profile()
+
+    def update_persona(self, persona: Persona):
+        """Update and save persona preference."""
+        self.profile.persona = persona
         self.save_profile()
 
     def get_system_prompt_modifier(self) -> str:

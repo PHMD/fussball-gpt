@@ -106,10 +106,12 @@ class AggregatedData(BaseModel):
         lines = [f"Data aggregated at: {self.aggregation_timestamp.isoformat()}\n"]
 
         if self.news_articles:
-            lines.append("=== NEWS ARTICLES ===")
+            lines.append("=== NEWS ARTICLES (Kicker Content) ===")
             for article in self.news_articles:
                 lines.append(f"[{article.timestamp.strftime('%Y-%m-%d %H:%M')}] {article.title}")
                 lines.append(f"Source: {article.source.value}")
+                if article.url:
+                    lines.append(f"URL: {article.url}")
                 lines.append(f"Content: {article.content[:500]}...")  # Truncate for context
                 lines.append("")
 

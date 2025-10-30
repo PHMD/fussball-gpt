@@ -45,11 +45,20 @@ class DataAggregator:
         self.has_odds_api = bool(self.odds_api_key)
         self.odds_api_base_url = "https://api.the-odds-api.com/v4"
 
+        # Brave Search API (free tier: 2K req/month, 1 req/sec)
+        self.brave_search_key = os.getenv("BRAVE_SEARCH_API_KEY")
+        self.has_brave_search = bool(self.brave_search_key)
+        self.brave_search_base_url = "https://api.search.brave.com/res/v1/web/search"
+
         # Cache setup
         self.cache_dir = Path("cache")
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_duration = timedelta(hours=6)  # Player stats, team form
         self.odds_cache_duration = timedelta(hours=24)  # Odds update less frequently
+
+        # Session-level cache for Brave Search (in-memory, 5-minute TTL)
+        self.brave_search_session_cache = {}  # {query_hash: (articles, timestamp)}
+        self.brave_cache_ttl = timedelta(minutes=5)
 
     def fetch_kicker_api(self) -> list[NewsArticle]:
         """
@@ -72,6 +81,37 @@ class DataAggregator:
 
         return articles
 
+    def _is_bundesliga_content(self, title: str, content: str) -> bool:
+        """
+        Check if article content is Bundesliga-related.
+
+        Returns True if content is about Bundesliga (German soccer).
+        Returns False for other sports (NFL, NBA, etc.) or other leagues.
+        """
+        text = f"{title} {content}".lower()
+
+        # Exclude non-soccer sports
+        excluded_sports = ['nfl', 'quarterback', 'vikings', 'nba', 'baseball', 'hockey', 'tennis']
+        if any(sport in text for sport in excluded_sports):
+            return False
+
+        # Bundesliga team names (major clubs)
+        bundesliga_teams = [
+            'bayern', 'münchen', 'dortmund', 'bvb', 'leipzig', 'leverkusen',
+            'frankfurt', 'freiburg', 'union berlin', 'köln', 'hoffenheim',
+            'wolfsburg', 'gladbach', 'stuttgart', 'bremen', 'augsburg',
+            'bochum', 'mainz', 'heidenheim', 'darmstadt'
+        ]
+
+        # Bundesliga keywords
+        bundesliga_keywords = ['bundesliga', '1. bundesliga', 'dfl']
+
+        # Check for matches
+        has_team = any(team in text for team in bundesliga_teams)
+        has_keyword = any(keyword in text for keyword in bundesliga_keywords)
+
+        return has_team or has_keyword
+
     def fetch_kicker_rss(self) -> list[NewsArticle]:
         """
         Fetch news from Kicker RSS feeds.
@@ -80,31 +120,41 @@ class DataAggregator:
             List of normalized NewsArticle objects
         """
         articles = []
+        seen_urls = set()  # Track duplicates across feeds
 
         try:
             # Parse the OPML feed to get individual RSS feeds
             feed = feedparser.parse(self.kicker_rss_url)
 
-            # Get the first few RSS feed URLs from the OPML
-            rss_feeds = []
-            if hasattr(feed, 'entries'):
-                for entry in feed.entries[:3]:  # Limit to first 3 feeds
-                    if hasattr(entry, 'xmlUrl'):
-                        rss_feeds.append(entry.xmlUrl)
-
-            # If OPML parsing fails, try direct RSS feed URLs
-            if not rss_feeds:
-                rss_feeds = [
-                    "https://newsfeed.kicker.de/news/aktuell",
-                    "https://newsfeed.kicker.de/bundesliga/news",
-                ]
+            # Use multiple feeds to maximize Bundesliga coverage (Oct 2025)
+            # Combining these gives ~7 unique Bundesliga articles vs 5 from single feed
+            rss_feeds = [
+                "https://newsfeed.kicker.de/news/aktuell",   # General news (5 Bundesliga)
+                "https://newsfeed.kicker.de/news/fussball",  # Soccer-specific (7 Bundesliga, some overlap)
+            ]
 
             # Parse each RSS feed
             for feed_url in rss_feeds:
                 try:
                     rss_data = feedparser.parse(feed_url)
 
-                    for entry in rss_data.entries[:5]:  # Get 5 articles per feed
+                    # Fetch more articles since we're filtering (get 20, filter to ~5-10 Bundesliga)
+                    for entry in rss_data.entries[:20]:
+                        title = entry.get("title", "No title")
+                        content = entry.get("summary", entry.get("description", "No content"))
+                        url = entry.get("link")
+
+                        # Skip duplicates (same article in multiple feeds)
+                        if url in seen_urls:
+                            continue
+
+                        # Filter: Only include Bundesliga-related content
+                        if not self._is_bundesliga_content(title, content):
+                            continue
+
+                        # Mark as seen
+                        seen_urls.add(url)
+
                         # Parse timestamp
                         timestamp = datetime.now()
                         if hasattr(entry, 'published_parsed') and entry.published_parsed:
@@ -112,9 +162,9 @@ class DataAggregator:
 
                         article = NewsArticle(
                             source=DataSource.KICKER_RSS,
-                            title=entry.get("title", "No title"),
-                            content=entry.get("summary", entry.get("description", "No content")),
-                            url=entry.get("link"),
+                            title=title,
+                            content=content,
+                            url=url,
                             timestamp=timestamp,
                             category=rss_data.feed.get("title"),
                         )
@@ -125,6 +175,188 @@ class DataAggregator:
 
         except Exception as e:
             print(f"Error fetching Kicker RSS: {e}")
+
+        return articles
+
+    def _extract_entities(self, title: str, description: str, snippets: list[str]) -> dict:
+        """
+        Extract entities (teams, players, keywords) from article text.
+
+        Args:
+            title: Article title
+            description: Article description
+            snippets: Additional text snippets
+
+        Returns:
+            Dict with teams, players, and keywords found
+        """
+        text = f"{title} {description} {' '.join(snippets)}".lower()
+
+        # Bundesliga teams
+        teams = [
+            'bayern', 'münchen', 'dortmund', 'bvb', 'leipzig', 'rb leipzig',
+            'leverkusen', 'bayer leverkusen', 'frankfurt', 'eintracht',
+            'freiburg', 'union berlin', 'köln', 'fc köln', 'hoffenheim',
+            'wolfsburg', 'vfl wolfsburg', 'gladbach', 'borussia', 'stuttgart',
+            'bremen', 'werder', 'augsburg', 'bochum', 'mainz', 'heidenheim'
+        ]
+
+        # Topic keywords
+        keywords = {
+            'match': ['spiel', 'match', 'sieg', 'niederlage', 'unentschieden', 'tor', 'goal'],
+            'injury': ['verletzung', 'injury', 'ausfall', 'gesperrt', 'suspended'],
+            'transfer': ['transfer', 'wechsel', 'verpflichtet', 'signing'],
+            'tactics': ['taktik', 'tactics', 'formation', 'strategie'],
+            'stats': ['statistik', 'stats', 'zahlen', 'rekord', 'record']
+        }
+
+        found_teams = [team for team in teams if team in text]
+        found_keywords = {}
+        for category, words in keywords.items():
+            if any(word in text for word in words):
+                found_keywords[category] = True
+
+        return {
+            'teams': list(set(found_teams)),
+            'topics': list(found_keywords.keys())
+        }
+
+    def _classify_article_type(self, entities: dict) -> str:
+        """
+        Classify article type based on extracted entities.
+
+        Args:
+            entities: Dict with teams and topics
+
+        Returns:
+            Article type classification
+        """
+        topics = entities.get('topics', [])
+
+        if 'match' in topics:
+            return "Match Report"
+        elif 'injury' in topics:
+            return "Injury Update"
+        elif 'transfer' in topics:
+            return "Transfer News"
+        elif 'tactics' in topics:
+            return "Tactical Analysis"
+        elif 'stats' in topics:
+            return "Performance Stats"
+        else:
+            return "General News"
+
+    def _combine_snippets(self, result: dict) -> str:
+        """
+        Combine description and extra_snippets for richer content.
+
+        Args:
+            result: Brave Search result dict
+
+        Returns:
+            Combined text content
+        """
+        parts = [result.get("description", "")]
+        extra_snippets = result.get("extra_snippets", [])
+        if extra_snippets:
+            parts.extend(extra_snippets)
+        return "\n\n".join(parts)
+
+    def fetch_kicker_articles_brave(self, query: str, max_results: int = 5) -> list[NewsArticle]:
+        """
+        Search kicker.de using Brave Search API for relevant Bundesliga articles.
+
+        Enhanced with:
+        - Session-level caching (5-minute TTL)
+        - Entity extraction (teams, topics)
+        - Article type classification
+        - Extra snippets for richer content
+
+        Used as fallback when RSS feeds have insufficient coverage for user queries.
+
+        Args:
+            query: Search query (will be prepended with "site:kicker.de Bundesliga")
+            max_results: Maximum number of results to return (default: 5)
+
+        Returns:
+            List of NewsArticle objects from Brave Search results
+        """
+        if not self.has_brave_search:
+            return []
+
+        # Check session cache
+        query_key = hash(query.lower().strip())
+
+        if query_key in self.brave_search_session_cache:
+            articles, cached_at = self.brave_search_session_cache[query_key]
+            age = datetime.now() - cached_at
+
+            if age < self.brave_cache_ttl:
+                print(f"[Using cached Brave Search results ({age.seconds}s old)]")
+                return articles
+
+        articles = []
+
+        try:
+            # Search kicker.de specifically for Bundesliga content
+            search_query = f"site:kicker.de Bundesliga {query}"
+
+            response = requests.get(
+                self.brave_search_base_url,
+                headers={
+                    "Accept": "application/json",
+                    "X-Subscription-Token": self.brave_search_key,
+                },
+                params={
+                    "q": search_query,
+                    "count": max_results,
+                    "freshness": "pw",  # Past week for recency
+                },
+                timeout=2  # Fast timeout (2 seconds)
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract web results
+            results = data.get("web", {}).get("results", [])
+
+            for result in results:
+                # Extract metadata
+                title = result.get("title", "No title")
+                description = result.get("description", "")
+                extra_snippets = result.get("extra_snippets", [])
+
+                # Combine all content (description + extra_snippets)
+                full_content = self._combine_snippets(result)
+
+                # Extract entities and classify
+                entities = self._extract_entities(title, description, extra_snippets)
+                article_type = self._classify_article_type(entities)
+
+                # Create enhanced NewsArticle
+                article = NewsArticle(
+                    source=DataSource.KICKER_RSS,  # Keep same source type for consistency
+                    title=title,
+                    content=full_content,  # Now includes extra_snippets (~1700 chars)
+                    url=result.get("url"),
+                    timestamp=datetime.now(),  # Brave doesn't provide publish date
+                    category=f"{article_type} (via Brave Search)",
+                )
+                articles.append(article)
+
+            if articles:
+                print(f"Brave Search found {len(articles)} additional Bundesliga articles")
+
+            # Cache results for session
+            self.brave_search_session_cache[query_key] = (articles, datetime.now())
+
+        except requests.exceptions.Timeout:
+            print("Brave Search timeout (2s limit exceeded)")
+        except requests.exceptions.HTTPError as e:
+            print(f"Brave Search API error: {e}")
+        except Exception as e:
+            print(f"Brave Search failed: {e}")
 
         return articles
 
