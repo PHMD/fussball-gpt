@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpIcon, SquareIcon } from 'lucide-react';
-import { Response } from '@/components/ui/shadcn-io/ai/response';
+import { ResponseWithCitations } from '@/components/ui/shadcn-io/ai/response-with-citations';
 import {
   Conversation,
   ConversationContent,
@@ -184,11 +184,11 @@ export default function ChatPage() {
                   })}
                 </div>
               ) : (
-                <Response>
+                <ResponseWithCitations>
                   {message.parts
                     .map((part) => (part.type === 'text' ? part.text : ''))
                     .join('')}
-                </Response>
+                </ResponseWithCitations>
               )}
             </MessageContent>
           </Message>
