@@ -184,7 +184,7 @@ export default function ChatPage() {
                   })}
                 </div>
               ) : (
-                <ResponseWithCitations>
+                <ResponseWithCitations language={profile.language}>
                   {message.parts
                     .map((part) => (part.type === 'text' ? part.text : ''))
                     .join('')}

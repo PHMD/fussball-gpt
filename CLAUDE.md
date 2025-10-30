@@ -160,177 +160,224 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - Vercel deployment
 
 
-## 🎯 Vibe-Coding Workflows
+## 🏗️ Agent Orchestration System
 
-### New Feature Development (Full Stack)
+**This project uses orchestrated sub-agents for complex workflows. Main chat COORDINATES, specialized agents IMPLEMENT.**
 
-```
-1. GitHub → Create issue with feature description
-2. Vibe-Check → Validate technical approach
-   - Use phase="planning"
-   - Include: goal, plan, uncertainties
-   - Adapt based on feedback
-3. Ref → Get official library docs for implementation
-   - Vercel AI SDK patterns
-   - Next.js App Router best practices
-   - shadcn/ui component APIs
-4. Exasearch → Find real-world code examples
-   - "Next.js streaming chat with Vercel AI SDK"
-   - "shadcn/ui chat components TypeScript"
-5. Code → Implement with type safety
-   - Follow existing patterns in codebase
-   - Use Pydantic models for data validation
-   - Implement caching where appropriate
-6. Semgrep → Security scan
-   - Run on ALL changed files
-   - Fix vulnerabilities before commit
-7. Playwright → Write E2E tests
-   - Test user flows end-to-end
-   - Cover both German and English paths
-   - Validate accessibility
-8. GitHub → Create branch, commit with issue reference
-   - Branch: feature/issue-number-description
-   - Commit: "feat: Description - Fixes #N"
-   - Push frequently
-9. Vibe-Learn → Document patterns/mistakes
-   - Log what worked/didn't work
-   - Track preference decisions
-10. GitHub → Create PR, link issue, request review
-11. Pieces → Store decisions and context (optional)
-```
+### System Components
 
-### Bug Fix Workflow
+**Three-layer system:**
+1. **Skills** (auto-invoked) - Reusable capabilities Claude decides when to use
+2. **Sub-agents** (delegated) - Isolated workers with specialized tools and context
+3. **Hooks** (event-driven) - Automation triggered by lifecycle events
+
+### Architecture
 
 ```
-1. GitHub → Triage bug, create/update issue
-   - Document reproduction steps
-   - Include error logs
-   - Assign priority label
-2. Pieces → Retrieve context (if using)
-   - When was feature last working?
-   - What changed since then?
-3. browser-use → Quick debugging (if browser-related)
-   - Inspect elements
-   - Test interactions
-   - Validate error states
-4. Ref → Check API documentation
-   - Verify correct API usage
-   - Check for breaking changes
-5. Fix → Update code
-   - Minimal changeset
-   - Add defensive checks
-6. Semgrep → Verify no new vulnerabilities
-7. Playwright → Add regression test
-   - Prevent bug from reoccurring
-   - Cover edge cases
-8. GitHub → Create PR with "Fixes #N"
-   - Link to original issue
-   - Document root cause
-   - Include test coverage
-9. Vibe-Learn → Log mistake pattern
-   - What caused the bug?
-   - How to prevent similar bugs?
+ORCHESTRATOR (Main Chat - You're here)
+├─ Role: Planning, coordination, context preservation
+├─ Skills: linear-handoff, vibe-check-planning, pieces-logger
+├─ Sub-agents: spec-agent, dev-agent, qa-agent
+├─ NEVER: Direct code implementation
+└─ ALWAYS: Preserve full project context
+
+SPECIALIST AGENTS
+├─ SPEC-AGENT (Research + specification)
+│  └─ Tools: Ref, Exasearch, vibe-check, Linear
+├─ DEV-AGENT (Implementation)
+│  └─ Tools: Ref, Exasearch, GitHub, vibe-check
+└─ QA-AGENT (Security + testing)
+   └─ Tools: Semgrep, Playwright, browser-use, vibe-check
 ```
 
-### Security Audit Workflow
+### Workflow Files
+
+- **Sub-agents:** `.claude/agents/` (spec-agent.md, dev-agent.md, qa-agent.md)
+- **Skills:** `.claude/skills/` (linear-handoff, vibe-check-planning, pieces-logger)
+- **Hooks:** `~/.claude/settings.json` (see `.claude/HOOKS_CONFIG.md`)
+- **Linear Setup:** `.claude/LINEAR_SETUP.md` (orchestration labels configuration)
+
+### Complete Feature Workflow
 
 ```
-1. Semgrep → Run comprehensive scan
-   - All Python files (data_aggregator.py, models.py, etc.)
-   - All TypeScript files (lib/, app/, components/)
-   - Focus on: auth, data validation, API calls
-2. Review findings → Categorize by severity
-   - Critical: Fix immediately
-   - High: Fix before deploy
-   - Medium/Low: Schedule for fix
-3. Ref → Research secure patterns
-   - OWASP best practices
-   - Framework-specific security guides
-4. Fix → Implement secure alternatives
-5. Semgrep → Re-scan to verify fixes
-6. GitHub → Create PR with security fixes
-   - Use "security:" prefix in commit
-   - Reference CVE/CWE numbers
-7. Vibe-Learn → Document security patterns
+User: "Add feature X"
+  ↓
+1. ORCHESTRATOR
+   ├─ Skill: linear-handoff → Create Linear issue (auto)
+   └─ Skill: vibe-check-planning → Validate approach (auto)
+      └─ Updates Linear: [PLANNING] Validated ✓
+  ↓
+2. ORCHESTRATOR → SPEC-AGENT
+   ├─ Skill: linear-handoff → Create [SPEC] sub-issue (auto)
+   └─ Launch: spec-agent with issue context
+  ↓
+3. SPEC-AGENT (background)
+   ├─ Reads: Linear issue + planning notes
+   ├─ Research: Ref (docs) + Exasearch (examples)
+   ├─ Writes: Technical spec in Linear sub-issue
+   └─ Signals: Complete
+      └─ Hook: SubagentStop → Notify orchestrator
+  ↓
+4. ORCHESTRATOR → DEV-AGENT
+   ├─ Reviews: Spec from SPEC-AGENT
+   ├─ Skill: linear-handoff → Create [DEV] sub-issue (auto)
+   └─ Launch: dev-agent with spec + issue context
+  ↓
+5. DEV-AGENT (background)
+   ├─ Reads: Spec + issue requirements
+   ├─ Implements: Code changes (visible when using --verbose flag)
+   ├─ Self-checks: vibe-check on complex logic
+   ├─ Updates: Linear sub-issue with code summary
+   └─ Signals: Complete
+      └─ Hook: SubagentStop → Notify orchestrator
+  ↓
+6. ORCHESTRATOR → QA-AGENT
+   ├─ Reviews: Code changes from DEV-AGENT
+   ├─ Skill: linear-handoff → Create [QA] sub-issue (auto)
+   └─ Launch: qa-agent with code + requirements
+  ↓
+7. QA-AGENT (background)
+   ├─ Scans: Semgrep security check
+   ├─ Tests: Playwright E2E tests (both languages)
+   ├─ Updates: Linear sub-issue with results
+   └─ Signals: Complete
+      └─ Hook: SubagentStop → Notify orchestrator
+  ↓
+8. ORCHESTRATOR (integration)
+   ├─ Reviews: All sub-issues (spec, dev, qa)
+   ├─ Creates: GitHub PR
+   ├─ Skill: pieces-logger → Log context (auto)
+   └─ Closes: Linear issue
 ```
 
-### Test Writing Workflow (E2E)
+### Linear Issue Structure
 
 ```
-1. Playwright → Generate test code from user interactions
-   - Use browser_generate_playwright_test
-   - Document expected behavior
-2. Implement tests → Follow existing patterns
-   - See tests/e2e/bilingual-support.spec.ts
-   - Use proper wait strategies
-   - Handle async state updates
-3. Run tests → Validate all scenarios
-   - Both language paths (German/English)
-   - All detail levels (Quick/Balanced/Detailed)
-   - Error states and edge cases
-4. browser-use → Quick validation (if needed)
-   - Debug flaky tests
-   - Verify selector stability
-5. GitHub → Commit test suite
-   - "test: Add E2E coverage for feature X"
-6. Pieces → Document test coverage decisions (optional)
+PHM-123: Add feature X
+├─ Labels: Agent:None → Agent:Spec → Agent:Dev → Agent:QA → Agent:None
+│          Phase:Planning → Phase:Spec → Phase:Dev → Phase:QA → (removed)
+├─ Comments: Phase-tagged updates [PLANNING], [SPEC], [DEV], [QA]
+└─ Sub-issues:
+   ├─ PHM-123-1: [SPEC] Feature X (Done)
+   ├─ PHM-123-2: [DEV] Feature X (Done)
+   └─ PHM-123-3: [QA] Feature X (Done)
 ```
 
-### Frontend Component Development
+### When to Use Orchestration vs Direct Implementation
 
-```
-1. GitHub → Create issue for component
-2. Vibe-Check → Validate component approach
-   - Does this need to be a new component?
-   - Can we use existing shadcn/ui component?
-   - Accessibility considerations?
-3. Ref → Research shadcn/ui patterns
-   - Find similar components
-   - Check accessibility patterns
-   - Review TypeScript patterns
-4. Exasearch → Find real-world examples
-   - "shadcn chat interface streaming"
-   - "Next.js 14 server components with streaming"
-5. Code → Implement component
-   - TypeScript strict mode
-   - Tailwind for styling
-   - Accessibility (ARIA labels, keyboard nav)
-6. Playwright → Write component tests
-   - User interaction flows
-   - Responsive behavior
-   - Accessibility checks
-7. Semgrep → Security scan (XSS, injection)
-8. GitHub → PR with component + tests
-```
+**Use orchestration (sub-agents) for:**
+- New features requiring spec → dev → qa
+- Complex bug fixes needing investigation
+- Security audits across multiple files
+- Refactoring with testing requirements
 
-### Code Audit Workflow (Current Task)
+**Implement directly (no sub-agents) for:**
+- Simple bug fixes (< 20 lines)
+- Documentation updates
+- Configuration changes
+- Trivial code adjustments
 
-```
-1. Vibe-Check → Validate audit approach
-   - What are audit goals?
-   - Which files to prioritize?
-   - Security vs. quality vs. performance?
-2. Semgrep → Security scan across codebase
-   - Python backend files
-   - TypeScript frontend files
-   - Configuration files
-3. Review architecture → Assess patterns
-   - Data flow correctness
-   - Error handling completeness
-   - Caching strategy effectiveness
-   - Type safety coverage
-4. Ref + Exasearch → Verify against best practices
-   - Vercel AI SDK patterns
-   - Next.js App Router patterns
-   - Pydantic validation patterns
-   - Real-world production examples
-5. Document findings → Create issues
-   - Security vulnerabilities (immediate)
-   - Technical debt (scheduled)
-   - Optimization opportunities (backlog)
-6. Vibe-Learn → Log audit insights
-7. GitHub → Create issues for follow-up work
-```
+### Quick Start Guide
+
+1. **Verify Linear labels** (already created):
+   ```
+   See .claude/LINEAR_SETUP.md
+   - Agent labels: Agent:None, Agent:Spec, Agent:Dev, Agent:QA
+   - Phase labels: Phase:Planning, Phase:Spec, Phase:Dev, Phase:QA
+   ```
+
+2. **Configure hooks** (one-time):
+   ```
+   See .claude/HOOKS_CONFIG.md
+   - Copy config to ~/.claude/settings.json
+   - Restart Claude Code
+   ```
+
+3. **Use orchestrated workflow**:
+   ```
+   User: "Add feature X"
+   → Skills auto-invoke (linear-handoff, vibe-check-planning)
+   → Orchestrator launches agents as needed
+   → Review at each checkpoint
+   → Approve to continue or provide feedback
+   ```
+
+### Key Principles
+
+1. **Orchestrator never implements** - Only coordinates and preserves context
+2. **vibe-check comes FIRST** - Validate before expensive research
+3. **Ref/Exasearch AFTER validation** - Don't waste tokens on wrong direction
+4. **Use --verbose flag for visibility** - See agent work in main chat
+5. **Linear is source of truth** - All operational context lives there
+6. **Pieces for long-term memory** - Cross-session learnings only
+7. **Sub-issues for traceability** - Each agent's work is isolated
+
+### Skills (Auto-Invoked)
+
+**linear-handoff:**
+- Creates sub-issues for each agent
+- Updates Agent/Phase labels
+- Adds phase-tagged comments to Linear
+
+**vibe-check-planning:**
+- Validates approach BEFORE research
+- Runs automatically when features requested
+- Prevents wasted tokens on wrong direction
+
+**pieces-context-logger:**
+- Logs complete context after merge
+- Synthesizes planning → spec → dev → qa
+- Creates long-term memory for future sessions
+
+### Sub-Agents (Explicitly Delegated)
+
+**spec-agent:**
+- Researches with Ref + Exasearch
+- Designs architecture
+- Writes comprehensive spec
+- Updates Linear sub-issue
+
+**dev-agent:**
+- Implements per spec
+- Code visible when using --verbose flag
+- Self-validates with vibe-check
+- Updates Linear with code summary
+
+**qa-agent:**
+- Scans with Semgrep
+- Tests with Playwright
+- Validates bilingual support
+- Updates Linear with results
+
+### Troubleshooting
+
+**Agents not launching:**
+- Check `.claude/agents/` files exist
+- Verify YAML frontmatter is valid
+- Use `/agents` command to see available agents
+
+**Skills not invoking:**
+- Check `.claude/skills/` directories exist
+- Verify SKILL.md files have proper frontmatter
+- Skills are model-invoked (Claude decides when)
+
+**Linear updates failing:**
+- Verify Linear MCP connected
+- Check labels exist (Agent:*, Phase:*)
+- See `.claude/LINEAR_SETUP.md`
+
+**Hooks not firing:**
+- Check `~/.claude/settings.json` configuration
+- Verify JSON syntax is valid
+- Restart Claude Code after changes
+
+### Related Documentation
+
+- `.claude/agents/` - Sub-agent definitions
+- `.claude/skills/` - Skill definitions
+- `.claude/HOOKS_CONFIG.md` - Hooks configuration guide
+- `.claude/LINEAR_SETUP.md` - Linear labels setup (orchestration)
+- `.claude/ORCHESTRATION_GUIDE.md` - Detailed walkthrough (if created)
 
 ---
 

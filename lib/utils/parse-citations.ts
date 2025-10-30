@@ -10,6 +10,7 @@ export interface Citation {
   source: string; // Source name (e.g., "API-Football")
   url?: string; // Optional source URL
   description?: string; // Optional source description
+  citationNumber?: number; // Sequential number for citation (1, 2, 3, etc.)
 }
 
 export interface ParsedResponse {
@@ -18,6 +19,31 @@ export interface ParsedResponse {
     content: string;
     citation?: Citation;
   }>;
+  citations: Citation[]; // Unique list of all citations in order
+}
+
+/**
+ * Convert number to superscript Unicode characters
+ * Example: 1 → ¹, 2 → ², 10 → ¹⁰
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return String(num)
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
 }
 
 /**
@@ -53,6 +79,8 @@ const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = 
  */
 export function parseCitations(text: string): ParsedResponse {
   const segments: ParsedResponse['segments'] = [];
+  const citationMap = new Map<string, Citation>(); // Track unique citations by URL+source
+  let citationCounter = 0;
 
   // Regex to match citation patterns: (via Source Name)
   const citationRegex = /\(via ([^)]+)\)/g;
@@ -98,16 +126,31 @@ export function parseCitations(text: string): ParsedResponse {
     const citedText = text.substring(textStart, textEnd).trim();
     if (citedText) {
       const metadata = SOURCE_METADATA[sourceName] || {};
+      const citationKey = `${sourceName}:${metadata.url || ''}`;
 
-      segments.push({
-        type: 'citation',
-        content: citedText,
-        citation: {
+      // Check if we've seen this citation before
+      let citation = citationMap.get(citationKey);
+      if (!citation) {
+        // New citation - assign next number
+        citationCounter++;
+        citation = {
           text: citedText,
           source: sourceName,
           url: metadata.url,
           description: metadata.description,
-        },
+          citationNumber: citationCounter,
+        };
+        citationMap.set(citationKey, citation);
+      }
+
+      // Generate markdown with clickable superscript citation number
+      const superscript = toSuperscript(citation.citationNumber!);
+      const contentWithCitation = `${citedText}[${superscript}](#citation-${citation.citationNumber})`;
+
+      segments.push({
+        type: 'citation',
+        content: contentWithCitation,
+        citation,
       });
     }
 
@@ -133,7 +176,12 @@ export function parseCitations(text: string): ParsedResponse {
     });
   }
 
-  return { segments };
+  // Convert citation map to array sorted by citation number
+  const citations = Array.from(citationMap.values()).sort(
+    (a, b) => (a.citationNumber || 0) - (b.citationNumber || 0)
+  );
+
+  return { segments, citations };
 }
 
 /**
@@ -157,5 +205,5 @@ export function optimizeSegments(parsed: ParsedResponse): ParsedResponse {
     }
   }
 
-  return { segments: optimized };
+  return { segments: optimized, citations: parsed.citations };
 }

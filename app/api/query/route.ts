@@ -6,7 +6,7 @@
  */
 
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages, type UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { messages, userProfile } = body;
+  const { messages, userProfile }: { messages: UIMessage[]; userProfile?: UserProfile } = body;
 
   // Validate request structure
   if (!messages || !Array.isArray(messages)) {
@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
 
   // Extract user query from last message for query-specific search
   const lastMessage = messages[messages.length - 1];
-  const userQuery = lastMessage?.content || 'Bundesliga';
+  const textPart = lastMessage?.parts?.find(part => part.type === 'text');
+  const userQuery = textPart?.type === 'text' ? textPart.text : 'Bundesliga';
 
   // Try Brave Search first (primary source)
   if (process.env.BRAVE_SEARCH_API_KEY) {
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
   const result = streamText({
     model: anthropic('claude-sonnet-4-20250514'),
     system: systemPrompt,
-    messages,
+    messages: convertToModelMessages(messages),
     onError({ error }) {
       console.error('AI SDK Error:', error);
     },
