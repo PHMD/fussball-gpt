@@ -19,23 +19,28 @@ import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
 export const maxDuration = 60;
 
 // Rate limiting: 5 requests per 30 seconds per IP
-const ratelimit = new Ratelimit({
-  redis: kv,
-  limiter: Ratelimit.fixedWindow(5, '30s'),
-});
+// Only enabled in production when KV env vars are available
+const ratelimit = process.env.KV_REST_API_URL
+  ? new Ratelimit({
+      redis: kv,
+      limiter: Ratelimit.fixedWindow(5, '30s'),
+    })
+  : null;
 
 export async function POST(req: NextRequest) {
-  // Rate limiting check
-  const ip = req.ip ?? 'anonymous';
-  const { success } = await ratelimit.limit(ip);
+  // Rate limiting check (skip in local dev when KV isn't configured)
+  if (ratelimit) {
+    const ip = req.ip ?? 'anonymous';
+    const { success } = await ratelimit.limit(ip);
 
-  if (!success) {
-    return new Response('Rate limited! Please try again in 30 seconds.', {
-      status: 429,
-      headers: {
-        'Retry-After': '30',
-      },
-    });
+    if (!success) {
+      return new Response('Rate limited! Please try again in 30 seconds.', {
+        status: 429,
+        headers: {
+          'Retry-After': '30',
+        },
+      });
+    }
   }
 
   const { messages, userProfile } = await req.json();

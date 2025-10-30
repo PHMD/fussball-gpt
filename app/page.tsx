@@ -10,7 +10,13 @@ import {
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpIcon, SquareIcon } from 'lucide-react';
-import { Response } from '@/components/ui/response';
+import { Response } from '@/components/ui/shadcn-io/ai/response';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ui/shadcn-io/ai/conversation';
+import { Message, MessageContent } from '@/components/ui/shadcn-io/ai/message';
 import { Loader } from '@/components/ui/loader';
 import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
@@ -101,7 +107,8 @@ export default function ChatPage() {
       </header>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <Conversation className="flex-1" style={{ minHeight: 0 }}>
+        <ConversationContent>
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-16">
             <p className="text-lg mb-2">
@@ -162,22 +169,11 @@ export default function ChatPage() {
         )}
 
         {messages.map((message) => (
-          <div
+          <Message
             key={message.id}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
+            from={message.role === 'user' ? 'user' : 'assistant'}
           >
-            <div
-              className={`max-w-[85%] rounded-lg ${
-                message.role === 'user'
-                  ? 'bg-primary text-primary-foreground px-4 py-2'
-                  : 'bg-card border px-4 py-3'
-              }`}
-            >
-              <div className="text-xs font-semibold mb-2 opacity-70">
-                {message.role === 'user' ? (isGerman ? 'Du' : 'You') : 'Fußball GPT'}
-              </div>
+            <MessageContent>
               {message.role === 'user' ? (
                 <div className="text-sm">
                   {message.parts.map((part, index) => {
@@ -194,13 +190,13 @@ export default function ChatPage() {
                     .join('')}
                 </Response>
               )}
-            </div>
-          </div>
+            </MessageContent>
+          </Message>
         ))}
 
         {(status === 'submitted' || status === 'streaming') && (
-          <div className="flex justify-start">
-            <div className="bg-card border rounded-lg px-4 py-3">
+          <Message from="assistant">
+            <MessageContent>
               <div className="flex items-center gap-3">
                 <Loader size={16} />
                 <span className="text-sm text-muted-foreground">
@@ -216,10 +212,12 @@ export default function ChatPage() {
                   {isGerman ? 'Stopp' : 'Stop'}
                 </button>
               </div>
-            </div>
-          </div>
+            </MessageContent>
+          </Message>
         )}
-      </div>
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
       {/* Input */}
       <div className="border-t p-4 bg-card">
