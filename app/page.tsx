@@ -6,9 +6,10 @@ import { useState } from 'react';
 import {
   PromptInput,
   PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputSubmit,
+  PromptInputActions,
 } from '@/components/ui/prompt-input';
+import { Button } from '@/components/ui/button';
+import { SendIcon, Loader2Icon, SquareIcon } from 'lucide-react';
 import { Response } from '@/components/ui/response';
 import { Loader } from '@/components/ui/loader';
 import { Suggestions, Suggestion } from '@/components/ui/suggestion';
@@ -33,8 +34,7 @@ export default function ChatPage() {
     body: { userProfile: profile },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (input.trim() && status === 'ready') {
       sendMessage({ text: input });
       setInput('');
@@ -224,10 +224,13 @@ export default function ChatPage() {
       {/* Input */}
       <div className="border-t p-4 bg-card">
         <div className="max-w-4xl mx-auto">
-          <PromptInput onSubmit={handleSubmit}>
+          <PromptInput
+            value={input}
+            onValueChange={setInput}
+            onSubmit={handleSubmit}
+            isLoading={status === 'submitted' || status === 'streaming'}
+          >
             <PromptInputTextarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
               placeholder={
                 isGerman
                   ? 'Frage nach Tabelle, Spielern, Spielen...'
@@ -235,9 +238,22 @@ export default function ChatPage() {
               }
               disabled={status !== 'ready'}
             />
-            <PromptInputToolbar className="justify-end">
-              <PromptInputSubmit status={status} disabled={!input.trim()} />
-            </PromptInputToolbar>
+            <PromptInputActions className="justify-end">
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || status !== 'ready'}
+                onClick={handleSubmit}
+              >
+                {status === 'submitted' ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : status === 'streaming' ? (
+                  <SquareIcon className="size-4" />
+                ) : (
+                  <SendIcon className="size-4" />
+                )}
+              </Button>
+            </PromptInputActions>
           </PromptInput>
           <p className="text-xs text-muted-foreground mt-3 text-center">
             {isGerman
