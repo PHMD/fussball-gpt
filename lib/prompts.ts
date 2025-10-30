@@ -131,10 +131,18 @@ ANTWORTFORMAT-ANFORDERUNGEN:
    - Spielerstatistiken (Tore, Vorlagen, Minuten) = "via API-Football"
    - Tabellenstände, Punkte, Torverhältnis = "via TheSportsDB"
    - Teamform (S-U-N-Aufzeichnungen) = "via TheSportsDB"
-   - Nachrichtenartikel = "via Kicker RSS"
+   - Nachrichtenartikel (aus NACHRICHTENARTIKEL-Bereich) = "via [Artikeltitel] [Artikel-URL]" (MUSS sowohl Titel ALS AUCH URL enthalten)
    - Spielpläne/Ergebnisse = "via TheSportsDB"
    - Wettquoten = "via The Odds API"
    - Verletzungsdaten = "via API-Football"
+
+   **KRITISCH: Für ALLE Nachrichtenartikel:**
+   - JEDER Artikel MUSS eine separate Zitation haben
+   - NIEMALS alle Artikel unter "Kicker RSS" oder "Kicker" gruppieren
+   - Format: "via [Genauer Artikeltitel aus NACHRICHTENARTIKEL] [Vollständige URL aus NACHRICHTENARTIKEL]"
+   - Beispiel: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/tv-rechte-dazn..."
+   - Dies ermöglicht Nutzern zu sehen, aus WELCHEM SPEZIFISCHEN ARTIKEL die Information stammt
+   - Wenn 5 verschiedene Artikel erwähnt werden, sollte es 5 separate Zitationen mit 5 verschiedenen Titeln und URLs geben
 
    **Beispiele für korrekte Zitierung:**
 
@@ -179,10 +187,18 @@ RESPONSE FORMAT REQUIREMENTS:
    - Player stats (goals, assists, minutes) = "via API-Football"
    - Standings, points, goal difference = "via TheSportsDB"
    - Team form (W-D-L records) = "via TheSportsDB"
-   - News articles = "via Kicker RSS"
+   - News articles (from NEWS ARTICLES section) = "via [Article Title] [Article URL]" (MUST include both title AND URL)
    - Match schedules/results = "via TheSportsDB"
    - Betting odds = "via The Odds API"
    - Injury data = "via API-Football"
+
+   **CRITICAL: For ALL News Articles:**
+   - EVERY article MUST have a separate citation
+   - NEVER group all articles under "Kicker RSS" or "Kicker"
+   - Format: "via [Exact Article Title from NEWS ARTICLES] [Full URL from NEWS ARTICLES]"
+   - Example: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/tv-rechte-dazn..."
+   - This allows users to see WHICH SPECIFIC ARTICLE the information came from
+   - If 5 different articles are mentioned, there should be 5 separate citations with 5 different titles and URLs
 
    **Examples of proper citation:**
 

@@ -42,11 +42,24 @@ export function ResponseWithCitations({
 
   // Bilingual labels
   const labels = {
-    sources: language === 'de' ? 'Quellen' : 'Sources',
+    sources: language === 'de' ? 'Quellen von Kicker' : 'Sources from Kicker',
   };
 
-  // Custom link component for smooth scroll to citations
+  // Custom components for markdown rendering with proper spacing and hierarchy
   const components = {
+    p: ({ children }: any) => <p className="mb-4 leading-relaxed">{children}</p>,
+    h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-xl font-bold mt-6 mb-3">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-5 mb-2">{children}</h3>,
+    h4: ({ children }: any) => <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>,
+    ul: ({ children }: any) => <ul className="mb-4 space-y-2 list-disc list-inside">{children}</ul>,
+    ol: ({ children }: any) => <ol className="mb-4 space-y-2 list-decimal list-inside">{children}</ol>,
+    li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground">
+        {children}
+      </blockquote>
+    ),
     a: ({ node, href, children, ...linkProps }: any) => {
       // Check if it's a citation anchor link
       if (href?.startsWith('#citation-')) {
@@ -94,9 +107,9 @@ export function ResponseWithCitations({
 
       {/* Sources Section */}
       {parsed.citations.length > 0 && (
-        <div className="border-t pt-4 mt-6">
-          <h3 className="text-sm font-semibold mb-3">{labels.sources}</h3>
-          <div className="space-y-2">
+        <div className="border-t pt-6 mt-8">
+          <h3 className="text-base font-semibold mb-4">{labels.sources}</h3>
+          <div className="flex gap-3 overflow-x-auto pb-2">
             {parsed.citations.map((citation) => (
               <CitationSourceCard
                 key={citation.citationNumber}

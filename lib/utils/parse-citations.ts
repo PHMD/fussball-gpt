@@ -62,10 +62,8 @@ const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = 
     url: 'https://the-odds-api.com',
     description: 'Real-time betting odds from multiple bookmakers',
   },
-  'Kicker RSS': {
-    url: 'https://www.kicker.de',
-    description: 'Leading German football news source',
-  },
+  // Note: Kicker articles now use individual article titles as source names,
+  // not the generic "Kicker RSS" label
 };
 
 /**
@@ -82,7 +80,7 @@ export function parseCitations(text: string): ParsedResponse {
   const citationMap = new Map<string, Citation>(); // Track unique citations by URL+source
   let citationCounter = 0;
 
-  // Regex to match citation patterns: (via Source Name)
+  // Regex to match citation patterns: (via Source Name) or (via Source Name URL)
   const citationRegex = /\(via ([^)]+)\)/g;
 
   let lastIndex = 0;
@@ -91,7 +89,16 @@ export function parseCitations(text: string): ParsedResponse {
   while ((match = citationRegex.exec(text)) !== null) {
     const citationStart = match.index;
     const citationEnd = citationRegex.lastIndex;
-    const sourceName = match[1];
+    const rawSource = match[1];
+
+    // Extract URL if present (format: "Source Name https://...")
+    let sourceName = rawSource;
+    let sourceUrl: string | undefined;
+    const urlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
+    if (urlMatch) {
+      sourceName = urlMatch[1].trim();
+      sourceUrl = urlMatch[2];
+    }
 
     // Find the sentence or clause before the citation
     // Look backwards for sentence boundaries (., !, ?, or start of text)
@@ -125,10 +132,15 @@ export function parseCitations(text: string): ParsedResponse {
     // Add cited text segment
     const citedText = text.substring(textStart, textEnd).trim();
     if (citedText) {
+      // Use URL from citation if provided, otherwise fall back to metadata
       const metadata = SOURCE_METADATA[sourceName] || {};
-      const citationKey = `${sourceName}:${metadata.url || ''}`;
+      const finalUrl = sourceUrl || metadata.url;
 
-      // Check if we've seen this citation before
+      // CRITICAL: Deduplicate by URL only, NOT by source name
+      // This ensures each article gets its own citation even if they share the same source
+      const citationKey = finalUrl || `${sourceName}:${citationCounter + 1}`;
+
+      // Check if we've seen this citation before (by URL)
       let citation = citationMap.get(citationKey);
       if (!citation) {
         // New citation - assign next number
@@ -136,8 +148,8 @@ export function parseCitations(text: string): ParsedResponse {
         citation = {
           text: citedText,
           source: sourceName,
-          url: metadata.url,
-          description: metadata.description,
+          url: finalUrl,
+          description: metadata.description || 'Article from Brave Search',
           citationNumber: citationCounter,
         };
         citationMap.set(citationKey, citation);
