@@ -11,6 +11,13 @@ import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
 import { fetchKickerRss } from '@/lib/api-clients/kicker-rss';
+import { fetchPlayerStats, fetchInjuries } from '@/lib/api-clients/api-football';
+import {
+  fetchBundesligaStandings,
+  fetchRecentResults,
+  fetchTeamForm,
+} from '@/lib/api-clients/thesportsdb';
+import { fetchBettingOdds } from '@/lib/api-clients/the-odds-api';
 import { toContextString } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompts';
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
@@ -48,19 +55,68 @@ export async function POST(req: NextRequest) {
   // Use provided user profile or fallback to default
   const profile: UserProfile = userProfile || DEFAULT_PROFILE;
 
-  // Fetch current Bundesliga data
-  const newsArticles = await fetchKickerRss();
+  // Fetch all Bundesliga data sources in parallel
+  const [
+    newsArticles,
+    playerStats,
+    injuries,
+    standings,
+    recentResults,
+    teamForm,
+    bettingOdds,
+  ] = await Promise.all([
+    fetchKickerRss(),
+    fetchPlayerStats(),
+    fetchInjuries(),
+    fetchBundesligaStandings(),
+    fetchRecentResults(),
+    fetchTeamForm(),
+    fetchBettingOdds(),
+  ]);
 
-  // Build context string for LLM
+  // Build context string for LLM with all data sources
   const dataContext = toContextString({
     news_articles: newsArticles,
-    sports_events: [],
-    player_stats: [],
+    sports_events: [...recentResults], // Combine recent match results
+    player_stats: playerStats,
     aggregation_timestamp: new Date(),
   });
 
+  // Add supplementary context sections
+  const standingsContext = standings.length > 0
+    ? `\n\n## BUNDESLIGA STANDINGS (${standings[0]?.team ? '2024/25 Season' : 'Current'})\n${standings
+        .map((entry) => `${entry.position}. ${entry.team} - ${entry.points} pts (${entry.played} played, GD: ${entry.goalDifference})`)
+        .join('\n')}`
+    : '';
+
+  const teamFormContext = Object.keys(teamForm).length > 0
+    ? `\n\n## TEAM FORM (Last 5 Matches)\n${Object.entries(teamForm)
+        .map(([team, form]) => `${team}: ${form.form} (${form.points} points from last 5)`)
+        .join('\n')}`
+    : '';
+
+  const injuriesContext = injuries.length > 0
+    ? `\n\n## INJURIES\n${injuries
+        .map((inj) => `${inj.player_name} (${inj.team}) - ${inj.injury_type || 'Unknown'} as of ${inj.date}`)
+        .join('\n')}`
+    : '';
+
+  const oddsContext = Object.keys(bettingOdds).length > 0
+    ? `\n\n## BETTING ODDS (European Decimal Format)\n${Object.values(bettingOdds)
+        .map((match) => {
+          const oddsStr = match.odds.home && match.odds.draw && match.odds.away
+            ? `${match.odds.home.toFixed(2)} / ${match.odds.draw.toFixed(2)} / ${match.odds.away.toFixed(2)}`
+            : 'N/A';
+          return `${match.homeTeam} vs ${match.awayTeam} - ${oddsStr} (${match.bookmaker})`;
+        })
+        .join('\n')}`
+    : '';
+
+  // Combine all context sections
+  const fullContext = dataContext + standingsContext + teamFormContext + injuriesContext + oddsContext;
+
   // Build dynamic system prompt based on user preferences
-  const systemPrompt = buildSystemPrompt(profile, dataContext);
+  const systemPrompt = buildSystemPrompt(profile, fullContext);
 
   // Stream response from Claude
   const result = streamText({
