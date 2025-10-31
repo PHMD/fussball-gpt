@@ -6,7 +6,7 @@
  */
 
 import { anthropic } from '@ai-sdk/anthropic';
-import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { streamText, generateText, convertToModelMessages, type UIMessage } from 'ai';
 import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
@@ -19,7 +19,7 @@ import {
   fetchTeamForm,
 } from '@/lib/api-clients/thesportsdb';
 import { fetchBettingOdds } from '@/lib/api-clients/the-odds-api';
-import { toContextString } from '@/lib/models';
+import { toContextString, type NewsArticle } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompts';
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
 
@@ -34,6 +34,45 @@ const ratelimit = process.env.KV_REST_API_URL
       limiter: Ratelimit.fixedWindow(5, '30s'),
     })
   : null;
+
+/**
+ * Summarize articles in parallel for carousel display
+ * Gracefully degrades if summarization fails
+ */
+async function summarizeArticles(articles: NewsArticle[]): Promise<NewsArticle[]> {
+  if (articles.length === 0) return articles;
+
+  try {
+    const summaryPromises = articles.map(async (article) => {
+      try {
+        const { text } = await generateText({
+          model: anthropic('claude-sonnet-4-20250514'),
+          prompt: `Summarize this football article in 1-2 concise sentences:
+
+Title: ${article.title}
+Content: ${article.content.substring(0, 500)}...
+
+Focus on: What happened, who was involved, and why it matters.
+Language: Match the article's language (German or English).`,
+          maxSteps: 1,
+          experimental_telemetry: {
+            isEnabled: false,
+          },
+        });
+
+        return { ...article, summary: text.trim() };
+      } catch (error) {
+        console.error(`Failed to summarize article "${article.title}":`, error);
+        return article; // Return article without summary if individual summarization fails
+      }
+    });
+
+    return await Promise.all(summaryPromises);
+  } catch (error) {
+    console.error('Article summarization failed:', error);
+    return articles; // Graceful degradation - return articles without summaries
+  }
+}
 
 export async function POST(req: NextRequest) {
   // Rate limiting check (skip in local dev when KV isn't configured)
@@ -87,7 +126,7 @@ export async function POST(req: NextRequest) {
 
   // News source strategy: Brave Search primary (query-specific, 8.5x more content)
   // Falls back to RSS if Brave unavailable/fails, then empty array if both fail
-  let newsArticles = [];
+  let newsArticles: NewsArticle[] = [];
 
   // Extract user query from last message for query-specific search
   const lastMessage = messages[messages.length - 1];
@@ -121,6 +160,13 @@ export async function POST(req: NextRequest) {
       console.error('⚠️ RSS failed:', rssError);
       console.log('→ No news available, AI will handle gracefully');
     }
+  }
+
+  // Summarize articles in parallel for carousel display (PHM-61)
+  if (newsArticles.length > 0) {
+    console.log('📝 Generating article summaries for carousel...');
+    newsArticles = await summarizeArticles(newsArticles);
+    console.log(`✓ Summarization complete: ${newsArticles.filter((a: any) => a.summary).length}/${newsArticles.length} articles`);
   }
 
   // Build context string for LLM with all data sources
@@ -178,6 +224,18 @@ export async function POST(req: NextRequest) {
   });
 
   return result.toUIMessageStreamResponse({
+    sendDataStream: (dataStream) => {
+      dataStream.writeData({
+        articles: newsArticles.map((article) => ({
+          title: article.title,
+          url: article.url,
+          image_url: article.image_url,
+          favicon_url: article.favicon_url,
+          age: article.age,
+          summary: article.summary,
+        })),
+      });
+    },
     onError: error => {
       if (error instanceof Error) {
         return `Error: ${error.message}`;

@@ -16,7 +16,7 @@ export interface CitationSourceCardProps {
 }
 
 export function CitationSourceCard({ citation, language = 'en' }: CitationSourceCardProps) {
-  const { citationNumber, source, url, imageUrl, faviconUrl, age } = citation;
+  const { citationNumber, source, url, imageUrl, faviconUrl, age, summary } = citation;
 
   // Extract domain from URL for display
   const getDomain = () => {
@@ -34,7 +34,7 @@ export function CitationSourceCard({ citation, language = 'en' }: CitationSource
   return (
     <Card
       id={`citation-${citationNumber}`}
-      className="scroll-mt-4 min-w-[220px] max-w-[220px] shrink-0 overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer"
+      className="scroll-mt-4 min-w-[220px] max-w-[220px] shrink-0 overflow-hidden bg-muted hover:bg-accent transition-colors cursor-pointer"
       onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
     >
       {imageUrl && (
@@ -72,10 +72,17 @@ export function CitationSourceCard({ citation, language = 'en' }: CitationSource
           </div>
         )}
 
-        {/* Title - truncate after 3 lines */}
-        <CardTitle className="text-sm leading-snug line-clamp-3 flex-1">
+        {/* Title - truncate after 2 lines when summary present, 3 lines otherwise */}
+        <CardTitle className={`text-sm leading-snug flex-1 ${summary ? 'line-clamp-2' : 'line-clamp-3'}`}>
           {source}
         </CardTitle>
+
+        {/* Summary - truncate after 3 lines */}
+        {summary && (
+          <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+            {summary}
+          </p>
+        )}
 
         {/* Age fixed at bottom */}
         {age && (
