@@ -12,6 +12,7 @@ export interface Citation {
   imageUrl?: string; // Optional thumbnail image URL
   faviconUrl?: string; // Optional favicon URL
   age?: string; // Optional age like "1 day ago"
+  summary?: string; // Optional AI-generated summary for carousel
   description?: string; // Optional source description
   citationNumber?: number; // Sequential number for citation (1, 2, 3, etc.)
 }
