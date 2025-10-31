@@ -8,20 +8,30 @@
 import { NewsArticle } from '../models';
 import { extractEntities, classifyArticleType, combineSnippets } from '../utils/entity-extraction';
 
-const BRAVE_SEARCH_BASE_URL = 'https://api.search.brave.com/res/v1/web/search';
+const BRAVE_SEARCH_BASE_URL = 'https://api.search.brave.com/res/v1/news/search';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-interface BraveSearchResult {
+interface BraveNewsResult {
   title: string;
   description: string;
   url: string;
+  thumbnail?: {
+    src: string;
+  };
+  age?: string;
+  page_age?: string;
+  meta_url?: {
+    scheme: string;
+    netloc: string;
+    hostname: string;
+    favicon?: string;
+    path?: string;
+  };
   extra_snippets?: string[];
 }
 
 interface BraveSearchResponse {
-  web?: {
-    results: BraveSearchResult[];
-  };
+  results?: BraveNewsResult[];
 }
 
 interface CacheEntry {
@@ -97,10 +107,11 @@ export async function fetchKickerArticlesBrave(
   const articles: NewsArticle[] = [];
 
   try {
-    // Search kicker.de specifically for Bundesliga content
+    // Search kicker.de specifically for Bundesliga content using News Search
     const searchQuery = `site:kicker.de Bundesliga ${query}`;
+    const url = `${BRAVE_SEARCH_BASE_URL}?q=${encodeURIComponent(searchQuery)}&count=${maxResults}`;
 
-    const response = await fetch(BRAVE_SEARCH_BASE_URL, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -115,29 +126,35 @@ export async function fetchKickerArticlesBrave(
 
     const data: BraveSearchResponse = await response.json();
 
-    // Extract web results
-    const results = data.web?.results || [];
+    // Extract news results
+    const results = data.results || [];
 
     for (const result of results.slice(0, maxResults)) {
       // Extract metadata
       const title = result.title || 'No title';
       const description = result.description || '';
+      const thumbnailUrl = result.thumbnail?.src;
+      const faviconUrl = result.meta_url?.favicon;
+      const age = result.age;
       const extraSnippets = result.extra_snippets || [];
 
-      // Combine all content (description + extra_snippets)
-      const fullContent = combineSnippets(result.description, extraSnippets);
+      // Combine description + extra_snippets for richer context
+      const fullContent = combineSnippets(description, extraSnippets);
 
-      // Extract entities and classify
+      // Extract entities and classify (using description + extra snippets)
       const entities = extractEntities(title, description, extraSnippets);
       const articleType = classifyArticleType(entities);
 
-      // Create enhanced NewsArticle
+      // Create enhanced NewsArticle with all metadata
       articles.push({
         source: 'kicker_rss', // Keep same source type for consistency
         title,
         content: fullContent,
         url: result.url,
-        timestamp: new Date(), // Brave doesn't provide publish date
+        image_url: thumbnailUrl,
+        favicon_url: faviconUrl,
+        age: age,
+        timestamp: new Date(), // Use current time since page_age parsing is complex
         category: `${articleType} (via Brave Search)`,
       });
     }

@@ -2,14 +2,14 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   PromptInput,
   PromptInputTextarea,
   PromptInputActions,
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
-import { ArrowUpIcon, SquareIcon } from 'lucide-react';
+import { ArrowUpIcon, SquareIcon, Settings } from 'lucide-react';
 import { ResponseWithCitations } from '@/components/ui/shadcn-io/ai/response-with-citations';
 import {
   Conversation,
@@ -23,6 +23,14 @@ import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { Language } from '@/lib/user-config';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
+import { CitationSourceCard } from '@/components/ui/citation-source-card';
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
@@ -40,6 +48,20 @@ export default function ChatPage() {
     body: { userProfile: profile },
   });
 
+  // Extract articles from the last assistant message for carousel display
+  const articles = useMemo(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage?.data?.articles) return [];
+    return lastMessage.data.articles as Array<{
+      title: string;
+      url?: string;
+      image_url?: string;
+      favicon_url?: string;
+      age?: string;
+      summary?: string;
+    }>;
+  }, [messages]);
+
   const handleSubmit = () => {
     if (input.trim() && status === 'ready') {
       sendMessage({ text: input });
@@ -56,7 +78,7 @@ export default function ChatPage() {
   const isGerman = profile.language === Language.GERMAN;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <>
       {/* Onboarding Dialog */}
       {!hasOnboarded && (
         <WelcomeDialog
@@ -84,31 +106,20 @@ export default function ChatPage() {
               {isGerman ? 'Bundesliga-Intelligenz mit KI' : 'Bundesliga intelligence powered by AI'}
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
             aria-label={isGerman ? 'Einstellungen' : 'Settings'}
           >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v6m0 6v6m-9-9h6m6 0h6" />
-            </svg>
-          </button>
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
       {/* Chat Messages */}
-      <Conversation className="flex-1" style={{ minHeight: 0 }}>
-        <ConversationContent>
+      <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
+        <ConversationContent className="max-w-4xl mx-auto pb-48">
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-16">
             <p className="text-lg mb-2">
@@ -168,30 +179,64 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((message) => (
-          <Message
-            key={message.id}
-            from={message.role === 'user' ? 'user' : 'assistant'}
-          >
-            <MessageContent>
-              {message.role === 'user' ? (
-                <div className="text-sm">
-                  {message.parts.map((part, index) => {
-                    if (part.type === 'text') {
-                      return <span key={index}>{part.text}</span>;
-                    }
-                    return null;
-                  })}
-                </div>
-              ) : (
-                <ResponseWithCitations>
-                  {message.parts
-                    .map((part) => (part.type === 'text' ? part.text : ''))
-                    .join('')}
-                </ResponseWithCitations>
-              )}
-            </MessageContent>
-          </Message>
+        {messages.map((message, messageIndex) => (
+          <div key={message.id}>
+            <Message from={message.role === 'user' ? 'user' : 'assistant'}>
+              <MessageContent>
+                {message.role === 'user' ? (
+                  <div className="text-sm">
+                    {message.parts.map((part, index) => {
+                      if (part.type === 'text') {
+                        return <span key={index}>{part.text}</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
+                ) : (
+                  <>
+                    {/* Article Discovery Carousel - show for last assistant message only */}
+                    {messageIndex === messages.length - 1 && articles.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
+                          {isGerman ? 'Aktuelle Artikel' : 'Recent Articles'}
+                        </h3>
+                        <Carousel opts={{ align: 'start', loop: false }} className="w-full">
+                          <CarouselContent className="-ml-2 md:-ml-4">
+                            {articles.map((article, index) => (
+                              <CarouselItem key={index} className="pl-2 md:pl-4 basis-auto">
+                                <CitationSourceCard
+                                  citation={{
+                                    text: '',
+                                    citationNumber: index + 1,
+                                    source: article.title,
+                                    url: article.url,
+                                    imageUrl: article.image_url,
+                                    faviconUrl: article.favicon_url,
+                                    age: article.age,
+                                    summary: article.summary,
+                                  }}
+                                  language={profile.language}
+                                />
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="hidden md:flex" />
+                          <CarouselNext className="hidden md:flex" />
+                        </Carousel>
+                      </div>
+                    )}
+
+                    {/* Main AI Response */}
+                    <ResponseWithCitations language={profile.language}>
+                      {message.parts
+                        .map((part) => (part.type === 'text' ? part.text : ''))
+                        .join('')}
+                    </ResponseWithCitations>
+                  </>
+                )}
+              </MessageContent>
+            </Message>
+          </div>
         ))}
 
         {(status === 'submitted' || status === 'streaming') && (
@@ -216,13 +261,18 @@ export default function ChatPage() {
           </Message>
         )}
         </ConversationContent>
+
+        {/* Fade effect overlay - positioned above content */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
+
         <ConversationScrollButton />
       </Conversation>
 
-      {/* Input */}
-      <div className="border-t p-4 bg-card">
+      {/* Floating Input */}
+      <div className="fixed bottom-12 left-0 right-0 lg:left-64 z-10 px-4">
         <div className="max-w-4xl mx-auto">
           <PromptInput
+            className="bg-muted shadow-lg"
             value={input}
             onValueChange={setInput}
             onSubmit={handleSubmit}
@@ -252,13 +302,8 @@ export default function ChatPage() {
               </Button>
             </PromptInputActions>
           </PromptInput>
-          <p className="text-xs text-muted-foreground mt-3 text-center">
-            {isGerman
-              ? 'Angetrieben von Vercel AI SDK + Claude 4 Sonnet'
-              : 'Powered by Vercel AI SDK + Claude 4 Sonnet'}
-          </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }

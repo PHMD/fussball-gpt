@@ -9,7 +9,12 @@ export interface Citation {
   text: string; // The cited text segment
   source: string; // Source name (e.g., "API-Football")
   url?: string; // Optional source URL
+  imageUrl?: string; // Optional thumbnail image URL
+  faviconUrl?: string; // Optional favicon URL
+  age?: string; // Optional age like "1 day ago"
+  summary?: string; // Optional AI-generated summary for carousel
   description?: string; // Optional source description
+  citationNumber?: number; // Sequential number for citation (1, 2, 3, etc.)
 }
 
 export interface ParsedResponse {
@@ -18,6 +23,31 @@ export interface ParsedResponse {
     content: string;
     citation?: Citation;
   }>;
+  citations: Citation[]; // Unique list of all citations in order
+}
+
+/**
+ * Convert number to superscript Unicode characters
+ * Example: 1 → ¹, 2 → ², 10 → ¹⁰
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return String(num)
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
 }
 
 /**
@@ -36,10 +66,8 @@ const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = 
     url: 'https://the-odds-api.com',
     description: 'Real-time betting odds from multiple bookmakers',
   },
-  'Kicker RSS': {
-    url: 'https://www.kicker.de',
-    description: 'Leading German football news source',
-  },
+  // Note: Kicker articles now use individual article titles as source names,
+  // not the generic "Kicker RSS" label
 };
 
 /**
@@ -53,8 +81,10 @@ const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = 
  */
 export function parseCitations(text: string): ParsedResponse {
   const segments: ParsedResponse['segments'] = [];
+  const citationMap = new Map<string, Citation>(); // Track unique citations by URL+source
+  let citationCounter = 0;
 
-  // Regex to match citation patterns: (via Source Name)
+  // Regex to match citation patterns: (via Source Name) or (via Source Name URL)
   const citationRegex = /\(via ([^)]+)\)/g;
 
   let lastIndex = 0;
@@ -63,7 +93,49 @@ export function parseCitations(text: string): ParsedResponse {
   while ((match = citationRegex.exec(text)) !== null) {
     const citationStart = match.index;
     const citationEnd = citationRegex.lastIndex;
-    const sourceName = match[1];
+    const rawSource = match[1];
+
+    // Extract URL, image URL, favicon URL, and age
+    // Format: "Source Name URL [ImageURL] [FaviconURL] [Age]"
+    let sourceName = rawSource;
+    let sourceUrl: string | undefined;
+    let imageUrl: string | undefined;
+    let faviconUrl: string | undefined;
+    let age: string | undefined;
+
+    // Try to match full format: "Source Name URL ImageURL FaviconURL Age"
+    const fullMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(.+)$/);
+    if (fullMatch) {
+      sourceName = fullMatch[1].trim();
+      sourceUrl = fullMatch[2];
+      imageUrl = fullMatch[3];
+      faviconUrl = fullMatch[4];
+      age = fullMatch[5].trim();
+    } else {
+      // Try format with 3 URLs: "Source Name URL ImageURL FaviconURL"
+      const threeUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+      if (threeUrlMatch) {
+        sourceName = threeUrlMatch[1].trim();
+        sourceUrl = threeUrlMatch[2];
+        imageUrl = threeUrlMatch[3];
+        faviconUrl = threeUrlMatch[4];
+      } else {
+        // Try format with 2 URLs: "Source Name URL ImageURL"
+        const twoUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+        if (twoUrlMatch) {
+          sourceName = twoUrlMatch[1].trim();
+          sourceUrl = twoUrlMatch[2];
+          imageUrl = twoUrlMatch[3];
+        } else {
+          // Fallback to single URL: "Source Name URL"
+          const singleUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
+          if (singleUrlMatch) {
+            sourceName = singleUrlMatch[1].trim();
+            sourceUrl = singleUrlMatch[2];
+          }
+        }
+      }
+    }
 
     // Find the sentence or clause before the citation
     // Look backwards for sentence boundaries (., !, ?, or start of text)
@@ -97,17 +169,40 @@ export function parseCitations(text: string): ParsedResponse {
     // Add cited text segment
     const citedText = text.substring(textStart, textEnd).trim();
     if (citedText) {
+      // Use URL from citation if provided, otherwise fall back to metadata
       const metadata = SOURCE_METADATA[sourceName] || {};
+      const finalUrl = sourceUrl || metadata.url;
+
+      // CRITICAL: Deduplicate by URL only, NOT by source name
+      // This ensures each article gets its own citation even if they share the same source
+      const citationKey = finalUrl || `${sourceName}:${citationCounter + 1}`;
+
+      // Check if we've seen this citation before (by URL)
+      let citation = citationMap.get(citationKey);
+      if (!citation) {
+        // New citation - assign next number
+        citationCounter++;
+        citation = {
+          text: citedText,
+          source: sourceName,
+          url: finalUrl,
+          imageUrl: imageUrl, // Include image URL if present
+          faviconUrl: faviconUrl, // Include favicon URL if present
+          age: age, // Include age if present
+          description: metadata.description || 'Article from Brave Search',
+          citationNumber: citationCounter,
+        };
+        citationMap.set(citationKey, citation);
+      }
+
+      // Generate markdown with clickable superscript citation number
+      const superscript = toSuperscript(citation.citationNumber!);
+      const contentWithCitation = `${citedText}[${superscript}](#citation-${citation.citationNumber})`;
 
       segments.push({
         type: 'citation',
-        content: citedText,
-        citation: {
-          text: citedText,
-          source: sourceName,
-          url: metadata.url,
-          description: metadata.description,
-        },
+        content: contentWithCitation,
+        citation,
       });
     }
 
@@ -133,7 +228,12 @@ export function parseCitations(text: string): ParsedResponse {
     });
   }
 
-  return { segments };
+  // Convert citation map to array sorted by citation number
+  const citations = Array.from(citationMap.values()).sort(
+    (a, b) => (a.citationNumber || 0) - (b.citationNumber || 0)
+  );
+
+  return { segments, citations };
 }
 
 /**
@@ -157,5 +257,5 @@ export function optimizeSegments(parsed: ParsedResponse): ParsedResponse {
     }
   }
 
-  return { segments: optimized };
+  return { segments: optimized, citations: parsed.citations };
 }
