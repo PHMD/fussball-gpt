@@ -47,14 +47,14 @@ export function ResponseWithCitations({
 
   // Custom components for markdown rendering with proper spacing and hierarchy
   const components = {
-    p: ({ children }: any) => <p className="mb-4 leading-relaxed">{children}</p>,
-    h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
-    h2: ({ children }: any) => <h2 className="text-xl font-bold mt-6 mb-3">{children}</h2>,
-    h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-5 mb-2">{children}</h3>,
-    h4: ({ children }: any) => <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>,
-    ul: ({ children }: any) => <ul className="mb-4 space-y-2 list-disc list-inside">{children}</ul>,
-    ol: ({ children }: any) => <ol className="mb-4 space-y-2 list-decimal list-inside">{children}</ol>,
-    li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+    p: ({ children }: any) => <p className="mb-4 leading-relaxed text-lg">{children}</p>,
+    h1: ({ children }: any) => <h1 className="text-3xl font-bold mt-6 mb-3">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-2xl font-bold mt-6 mb-3">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-xl font-semibold mt-5 mb-2">{children}</h3>,
+    h4: ({ children }: any) => <h4 className="text-lg font-semibold mt-4 mb-2">{children}</h4>,
+    ul: ({ children }: any) => <ul className="mb-4 space-y-2 list-disc list-inside text-lg">{children}</ul>,
+    ol: ({ children }: any) => <ol className="mb-4 space-y-2 list-decimal list-inside text-lg">{children}</ol>,
+    li: ({ children }: any) => <li className="leading-relaxed text-lg">{children}</li>,
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground">
         {children}
@@ -96,7 +96,7 @@ export function ResponseWithCitations({
   return (
     <div className={cn('space-y-6', className)}>
       {/* AI Response with Markdown */}
-      <div className="prose prose-sm max-w-none dark:prose-invert">
+      <div className="prose max-w-none dark:prose-invert">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={components}
