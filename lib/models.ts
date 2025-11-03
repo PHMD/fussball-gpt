@@ -23,6 +23,7 @@ export const NewsArticleSchema = z.object({
   image_url: z.string().optional(),
   favicon_url: z.string().optional(),
   age: z.string().optional(), // Human-readable age like "1 day ago"
+  summary: z.string().optional(), // AI-generated summary for carousel display
   timestamp: z.date(),
   author: z.string().optional(),
   category: z.string().optional(),
@@ -102,15 +103,24 @@ export type AggregatedData = z.infer<typeof AggregatedDataSchema>;
  * (Port of Python's AggregatedData.to_context_string() method)
  */
 export function toContextString(data: AggregatedData): string {
+  // Handle timestamps as either Date objects or strings (from JSON serialization)
+  const aggregationDate = data.aggregation_timestamp instanceof Date
+    ? data.aggregation_timestamp
+    : new Date(data.aggregation_timestamp);
+
   const lines: string[] = [
-    `Data aggregated at: ${data.aggregation_timestamp.toISOString()}\n`
+    `Data aggregated at: ${aggregationDate.toISOString()}\n`
   ];
 
   if (data.news_articles.length > 0) {
     lines.push('=== NEWS ARTICLES (Kicker Content) ===');
     for (const article of data.news_articles) {
-      const timestamp = article.timestamp.toISOString().split('T')[0];
-      const time = article.timestamp.toTimeString().substring(0, 5);
+      // Handle timestamp as either Date object or string (from JSON serialization)
+      const timestampDate = article.timestamp instanceof Date
+        ? article.timestamp
+        : new Date(article.timestamp);
+      const timestamp = timestampDate.toISOString().split('T')[0];
+      const time = timestampDate.toTimeString().substring(0, 5);
       lines.push(`[${timestamp} ${time}] ${article.title}`);
       lines.push(`Source: ${article.source}`);
       if (article.url) {
@@ -135,8 +145,12 @@ export function toContextString(data: AggregatedData): string {
   if (data.sports_events.length > 0) {
     lines.push('=== SPORTS EVENTS ===');
     for (const event of data.sports_events) {
-      const timestamp = event.timestamp.toISOString().split('T')[0];
-      const time = event.timestamp.toTimeString().substring(0, 5);
+      // Handle timestamp as either Date object or string (from JSON serialization)
+      const timestampDate = event.timestamp instanceof Date
+        ? event.timestamp
+        : new Date(event.timestamp);
+      const timestamp = timestampDate.toISOString().split('T')[0];
+      const time = timestampDate.toTimeString().substring(0, 5);
       lines.push(`[${timestamp} ${time}] ${event.title}`);
       lines.push(`Source: ${event.source}`);
       lines.push(`Content: ${event.content}`);
