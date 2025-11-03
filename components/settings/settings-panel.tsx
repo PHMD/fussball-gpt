@@ -1,12 +1,13 @@
 /**
  * Settings panel for updating user preferences
  *
- * Allows users to change language, detail level, and persona after onboarding
+ * Allows users to change language, detail level, persona, and theme after onboarding
  */
 
 'use client';
 
 import { useState } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Language,
   DetailLevel,
@@ -25,6 +26,7 @@ export function SettingsPanel({ profile, onUpdate, onClose }: SettingsPanelProps
   const [language, setLanguage] = useState(profile.language);
   const [detailLevel, setDetailLevel] = useState(profile.detailLevel);
   const [persona, setPersona] = useState(profile.persona);
+  const { theme, setTheme } = useTheme();
 
   const handleSave = () => {
     onUpdate({ language, detailLevel, persona });
@@ -32,6 +34,12 @@ export function SettingsPanel({ profile, onUpdate, onClose }: SettingsPanelProps
   };
 
   const isGerman = language === Language.GERMAN;
+
+  const themeLabels = {
+    light: { de: 'Hell', en: 'Light', icon: '☀️' },
+    dark: { de: 'Dunkel', en: 'Dark', icon: '🌙' },
+    system: { de: 'System', en: 'System', icon: '💻' },
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -81,6 +89,31 @@ export function SettingsPanel({ profile, onUpdate, onClose }: SettingsPanelProps
                 <div className="text-3xl mb-1">{LABELS.language[lang].flag}</div>
                 <div className="font-semibold">
                   {LABELS.language[lang][lang === Language.GERMAN ? 'de' : 'en']}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Theme Section */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">
+            {isGerman ? 'Design' : 'Theme'}
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            {(['light', 'dark', 'system'] as const).map((themeOption) => (
+              <button
+                key={themeOption}
+                onClick={() => setTheme(themeOption)}
+                className={`p-4 rounded-lg border-2 transition-all hover:border-primary ${
+                  theme === themeOption
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border'
+                }`}
+              >
+                <div className="text-3xl mb-1">{themeLabels[themeOption].icon}</div>
+                <div className="font-semibold text-sm">
+                  {themeLabels[themeOption][isGerman ? 'de' : 'en']}
                 </div>
               </button>
             ))}

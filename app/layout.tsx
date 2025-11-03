@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { FeedLayoutWrapper } from '@/components/feed/feed-layout-wrapper'
+import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {
   title: 'Fußball GPT',
@@ -13,7 +15,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <FeedLayoutWrapper>{children}</FeedLayoutWrapper>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
