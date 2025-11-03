@@ -48,3 +48,5 @@ yarn-error.log*
 
 # Local env files
 .env*.local
+.worktrees/
+.worktree-registry.json
