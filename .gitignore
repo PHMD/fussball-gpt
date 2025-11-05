@@ -50,3 +50,11 @@ yarn-error.log*
 .env*.local
 .worktrees/
 .worktree-registry.json
+
+# Worktrees (nested structure)
+worktrees/
+
+# Runtime directories
+cache/
+results/
+*.log
