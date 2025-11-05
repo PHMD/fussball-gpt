@@ -189,10 +189,10 @@ rm -f "$TEMP_SCRIPT"
 TICKET_TITLE="Work on $TICKET_ID"
 BRANCH_NAME=$(echo "$TICKET_ID" | tr '[:upper:]' '[:lower:]')
 
-# Step 2: Determine worktree path (nested in project)
-WORKTREE_PARENT="$PROJECT_PATH"
+# Step 2: Determine worktree path (sibling to project)
+WORKTREE_PARENT=$(dirname "$PROJECT_PATH")
 WORKTREE_NAME="$PROJECT_NAME-$BRANCH_NAME"
-WORKTREE_PATH="$WORKTREE_PARENT/worktrees/$BRANCH_NAME"
+WORKTREE_PATH="$WORKTREE_PARENT/$WORKTREE_NAME"
 
 echo "Worktree will be created at: $WORKTREE_PATH"
 echo ""
@@ -256,17 +256,12 @@ if [ "$EXISTING_WORKTREE" = false ]; then
     cp -r "$TEMPLATES_DIR/agents" "$WORKTREE_PATH/.claude/"
     cp -r "$TEMPLATES_DIR/skills" "$WORKTREE_PATH/.claude/"
     echo -e "${GREEN}✓ Agents and skills copied${NC}"
-
-    # Step 6: Create .claudeignore
-    echo -e "${BLUE}Step 5: Creating .claudeignore...${NC}"
-    echo "../../CLAUDE.md" > "$WORKTREE_PATH/.claudeignore"
-    echo -e "${GREEN}✓ .claudeignore created (ignores main worktree CLAUDE.md)${NC}"
 else
     echo -e "${YELLOW}Using existing worktree${NC}"
 fi
 
-# Step 7: Create .ticket.md placeholder
-echo -e "${BLUE}Step 6: Creating .ticket.md...${NC}"
+# Step 6: Create .ticket.md placeholder
+echo -e "${BLUE}Step 5: Creating .ticket.md...${NC}"
 cat > "$WORKTREE_PATH/.ticket.md" << EOF
 # $TICKET_ID
 
