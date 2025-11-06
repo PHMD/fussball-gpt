@@ -22,6 +22,7 @@ import { fetchBettingOdds } from '@/lib/api-clients/the-odds-api';
 import { toContextString } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompts';
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
+import { classifyQuery, getRequiredDataSources, estimateTokenSavings } from '@/lib/query-classifier';
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
@@ -68,7 +69,65 @@ export async function POST(req: NextRequest) {
   // Use provided user profile or fallback to default
   const profile: UserProfile = userProfile || DEFAULT_PROFILE;
 
-  // Fetch Bundesliga data sources (excluding news - handled separately below)
+  // Extract user query from last message
+  const lastMessage = messages[messages.length - 1];
+  const textPart = lastMessage?.parts?.find(part => part.type === 'text');
+  const userQuery = textPart?.type === 'text' ? textPart.text : 'Bundesliga';
+
+  // Classify query to determine required data sources (Week 1: Keyword-based)
+  const classification = classifyQuery(userQuery);
+  const requiredSources = getRequiredDataSources(classification.category);
+  const tokenSavings = estimateTokenSavings(classification.category);
+
+  console.log('🧠 Query Classification:', {
+    query: userQuery.substring(0, 50),
+    category: classification.category,
+    confidence: classification.confidence,
+    method: classification.method,
+    requiredSources,
+    tokenSavings: `${tokenSavings.savingsPercent}% (${tokenSavings.optimizedTokens.toLocaleString()} tokens)`,
+  });
+
+  // Fetch only required data sources based on classification
+  const dataFetchPromises: Promise<any>[] = [];
+
+  // Map data sources to their fetch functions
+  if (requiredSources.includes('player_stats') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchPlayerStats());
+  } else {
+    dataFetchPromises.push(Promise.resolve([]));
+  }
+
+  if (requiredSources.includes('injuries') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchInjuries());
+  } else {
+    dataFetchPromises.push(Promise.resolve([]));
+  }
+
+  if (requiredSources.includes('standings') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchBundesligaStandings());
+  } else {
+    dataFetchPromises.push(Promise.resolve([]));
+  }
+
+  if (requiredSources.includes('sports_events') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchRecentResults());
+  } else {
+    dataFetchPromises.push(Promise.resolve([]));
+  }
+
+  if (requiredSources.includes('team_form') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchTeamForm());
+  } else {
+    dataFetchPromises.push(Promise.resolve({}));
+  }
+
+  if (requiredSources.includes('betting_odds') || requiredSources.length === 0) {
+    dataFetchPromises.push(fetchBettingOdds());
+  } else {
+    dataFetchPromises.push(Promise.resolve({}));
+  }
+
   const [
     playerStats,
     injuries,
@@ -76,26 +135,16 @@ export async function POST(req: NextRequest) {
     recentResults,
     teamForm,
     bettingOdds,
-  ] = await Promise.all([
-    fetchPlayerStats(),
-    fetchInjuries(),
-    fetchBundesligaStandings(),
-    fetchRecentResults(),
-    fetchTeamForm(),
-    fetchBettingOdds(),
-  ]);
+  ] = await Promise.all(dataFetchPromises);
 
   // News source strategy: Brave Search primary (query-specific, 8.5x more content)
   // Falls back to RSS if Brave unavailable/fails, then empty array if both fail
-  let newsArticles = [];
+  // Only fetch news if required by classification
+  let newsArticles: any[] = [];
 
-  // Extract user query from last message for query-specific search
-  const lastMessage = messages[messages.length - 1];
-  const textPart = lastMessage?.parts?.find(part => part.type === 'text');
-  const userQuery = textPart?.type === 'text' ? textPart.text : 'Bundesliga';
+  const shouldFetchNews = requiredSources.includes('news_articles') || requiredSources.length === 0;
 
-  // Try Brave Search first (primary source)
-  if (process.env.BRAVE_SEARCH_API_KEY) {
+  if (shouldFetchNews && process.env.BRAVE_SEARCH_API_KEY) {
     try {
       console.log('🔍 Fetching from Brave Search (primary source)...');
       newsArticles = await fetchKickerArticlesBrave(userQuery, 10);
@@ -111,7 +160,7 @@ export async function POST(req: NextRequest) {
         console.log('→ No news available, AI will handle gracefully');
       }
     }
-  } else {
+  } else if (shouldFetchNews) {
     // No Brave API key - use RSS fallback
     console.log('📰 Using RSS (no Brave API key configured)');
     try {
@@ -121,6 +170,8 @@ export async function POST(req: NextRequest) {
       console.error('⚠️ RSS failed:', rssError);
       console.log('→ No news available, AI will handle gracefully');
     }
+  } else {
+    console.log('⏭️ Skipping news fetch (not required for category:', classification.category + ')');
   }
 
   // Build context string for LLM with all data sources
