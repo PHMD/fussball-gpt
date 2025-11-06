@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
           const oddsStr = match.odds.home && match.odds.draw && match.odds.away
             ? `${match.odds.home.toFixed(2)} / ${match.odds.draw.toFixed(2)} / ${match.odds.away.toFixed(2)}`
             : 'N/A';
-          return `${match.homeTeam} vs ${match.awayTeam} - ${oddsStr} (${match.bookmaker})`;
+          return `${match.homeTeam} vs ${match.awayTeam} - ${oddsStr} (${match.bookmaker}) [${match.commenceTime}]`;
         })
         .join('\n')}`
     : '';

@@ -117,6 +117,48 @@ Agent:
 - Reports: "Feature worktree created for PHM-XX"
 ```
 
+## 🔄 Merging Feature Branches into Staging
+
+**CRITICAL: Always use the merge script to avoid losing work**
+
+```bash
+# CORRECT: Use the safe merge script
+./scripts/merge-feature.sh feature/phm-XXX-description
+
+# WRONG: Direct merge (can overwrite staging changes)
+git merge feature/phm-XXX-description  # ❌ DON'T DO THIS
+```
+
+**What the script does:**
+1. ✅ Verifies you're on staging branch
+2. ✅ Checks for uncommitted changes
+3. ✅ Detects conflicts before committing
+4. ✅ Shows which files will change
+5. ✅ Highlights changes to critical files (route.ts, response.tsx, etc.)
+6. ✅ Gives you chance to abort if something looks wrong
+
+**If conflicts detected:**
+The script will recommend the safe workflow:
+```bash
+# 1. Abort the merge
+git merge --abort
+
+# 2. Go to feature worktree
+cd ../ksi_prototype-phm-XXX
+
+# 3. Merge staging INTO feature first
+git merge staging
+
+# 4. Resolve conflicts in feature branch
+# 5. Test everything works
+# 6. Return to staging and re-run merge script
+cd ../ksi_prototype-staging
+./scripts/merge-feature.sh feature/phm-XXX-description
+```
+
+**Why this matters:**
+Feature branches often have older versions of files. Direct merges can overwrite recent staging changes (like PHM-117 fix that got lost). The script catches this before it happens.
+
 ## Available Skills
 
 - `vibe-check-planning` - Quick validation before implementation

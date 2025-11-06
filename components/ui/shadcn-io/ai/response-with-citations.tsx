@@ -2,8 +2,6 @@
 
 import { parseCitations } from '@/lib/utils/parse-citations';
 import { Response, type ResponseProps } from './response';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { CitationSourceCard } from '@/components/ui/citation-source-card';
 
@@ -15,7 +13,7 @@ export interface ResponseWithCitationsProps extends ResponseProps {
  * Response component with automatic citation parsing and markdown rendering
  *
  * Parses LLM responses for citation markers (e.g., "via API-Football"),
- * renders markdown content as it streams, and displays sources section.
+ * renders markdown content using the unified Response component, and displays sources section.
  */
 export function ResponseWithCitations({
   children,
@@ -45,65 +43,10 @@ export function ResponseWithCitations({
     sources: language === 'de' ? 'Quellen von Kicker' : 'Sources from Kicker',
   };
 
-  // Custom components for markdown rendering with proper spacing and hierarchy
-  const components = {
-    p: ({ children }: any) => <p className="mb-4 leading-relaxed text-lg">{children}</p>,
-    h1: ({ children }: any) => <h1 className="text-3xl font-bold mt-6 mb-3">{children}</h1>,
-    h2: ({ children }: any) => <h2 className="text-2xl font-bold mt-6 mb-3">{children}</h2>,
-    h3: ({ children }: any) => <h3 className="text-xl font-semibold mt-5 mb-2">{children}</h3>,
-    h4: ({ children }: any) => <h4 className="text-lg font-semibold mt-4 mb-2">{children}</h4>,
-    ul: ({ children }: any) => <ul className="mb-4 space-y-2 list-disc list-inside text-lg">{children}</ul>,
-    ol: ({ children }: any) => <ol className="mb-4 space-y-2 list-decimal list-inside text-lg">{children}</ol>,
-    li: ({ children }: any) => <li className="leading-relaxed text-lg">{children}</li>,
-    blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-primary/30 pl-4 my-4 italic text-muted-foreground">
-        {children}
-      </blockquote>
-    ),
-    a: ({ node, href, children, ...linkProps }: any) => {
-      // Check if it's a citation anchor link
-      if (href?.startsWith('#citation-')) {
-        return (
-          <a
-            href={href}
-            className="text-primary hover:underline cursor-pointer"
-            onClick={(e) => {
-              e.preventDefault();
-              const target = document.getElementById(href.slice(1));
-              target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            {...linkProps}
-          >
-            {children}
-          </a>
-        );
-      }
-      // External links
-      return (
-        <a
-          href={href}
-          className="text-primary hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-          {...linkProps}
-        >
-          {children}
-        </a>
-      );
-    },
-  };
-
   return (
     <div className={cn('space-y-6', className)}>
-      {/* AI Response with Markdown */}
-      <div className="prose max-w-none dark:prose-invert">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={components}
-        >
-          {fullContent}
-        </ReactMarkdown>
-      </div>
+      {/* AI Response with Markdown - using unified Response component */}
+      <Response {...props}>{fullContent}</Response>
 
       {/* Sources Section - Only show article sources, not background APIs */}
       {(() => {
