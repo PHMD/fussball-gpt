@@ -36,7 +36,15 @@ WICHTIG - MARKDOWN-FORMATIERUNG:
   - Bayern vs Freiburg (14:30)
   - Dortmund vs Stuttgart (14:30)
 - Beispiel FALSCH:
-  Spiele am Freitag: • Bayern vs Freiburg • Dortmund vs Stuttgart`;
+  Spiele am Freitag: • Bayern vs Freiburg • Dortmund vs Stuttgart
+
+FORMATIERUNGSANFORDERUNGEN - ALLE ANTWORTEN IN SAUBEREM MARKDOWN:
+- Verwende Überschriften (##, ###) um Informationen zu organisieren
+- Verwende Aufzählungslisten (-) für mehrere Punkte
+- Verwende nummerierte Listen (1., 2., 3.) für Schritte oder Ranglisten
+- Verwende **Fettdruck** für Betonung von Schlüsselfakten
+- Verwende Tabellen für strukturierte Daten wenn angemessen
+- Halte Absätze lesbar und gut strukturiert`;
   } else {
     return `You are Fußball GPT, an AI assistant for German football.
 
@@ -62,7 +70,15 @@ CRITICAL - MARKDOWN FORMATTING:
   - Bayern vs Freiburg (2:30 PM)
   - Dortmund vs Stuttgart (2:30 PM)
 - Example WRONG:
-  Friday matches: • Bayern vs Freiburg • Dortmund vs Stuttgart`;
+  Friday matches: • Bayern vs Freiburg • Dortmund vs Stuttgart
+
+FORMATTING REQUIREMENTS - SHOW ALL RESPONSES IN CLEAN MARKDOWN:
+- Use headings (##, ###) to organize information
+- Use bullet lists (-) for multiple items
+- Use numbered lists (1., 2., 3.) for sequential steps or rankings
+- Use **bold** for emphasis on key facts
+- Use tables for structured data when appropriate
+- Keep paragraphs readable and well-structured`;
   }
 }
 
