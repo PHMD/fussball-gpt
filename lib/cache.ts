@@ -39,10 +39,19 @@ const CACHE_KEYS = {
  * Check if KV is available (has required env vars)
  */
 function isKVAvailable(): boolean {
-  return Boolean(
-    process.env.KV_REST_API_URL &&
-    process.env.KV_REST_API_TOKEN
-  );
+  const hasUrl = Boolean(process.env.KV_REST_API_URL);
+  const hasToken = Boolean(process.env.KV_REST_API_TOKEN);
+  const available = hasUrl && hasToken;
+
+  console.log('🔍 KV Availability Check:', {
+    available,
+    hasUrl,
+    hasToken,
+    urlPreview: hasUrl ? process.env.KV_REST_API_URL?.substring(0, 30) + '...' : 'MISSING',
+    tokenPreview: hasToken ? process.env.KV_REST_API_TOKEN?.substring(0, 10) + '...' : 'MISSING',
+  });
+
+  return available;
 }
 
 /**
@@ -50,14 +59,32 @@ function isKVAvailable(): boolean {
  */
 export async function getCached<T>(key: string): Promise<T | null> {
   if (!isKVAvailable()) {
+    console.log(`⚠️ Cache SKIP for ${key} - KV not available`);
     return null; // Skip cache if KV not configured
   }
 
   try {
+    console.log(`🔎 Attempting to get from KV: ${key}`);
     const data = await kv.get<T>(key);
+
+    if (data === null) {
+      console.log(`❌ KV returned null for ${key} (key not found or expired)`);
+    } else {
+      console.log(`✅ KV returned data for ${key}:`, {
+        type: typeof data,
+        isArray: Array.isArray(data),
+        length: Array.isArray(data) ? data.length : 'N/A',
+        hasData: data !== null && data !== undefined,
+      });
+    }
+
     return data;
   } catch (error) {
-    console.error(`Cache get error for key ${key}:`, error);
+    console.error(`❌ Cache get error for key ${key}:`, {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
     return null;
   }
 }
@@ -71,13 +98,29 @@ export async function setCached<T>(
   ttl: number
 ): Promise<void> {
   if (!isKVAvailable()) {
+    console.log(`⚠️ Cache SET SKIP for ${key} - KV not available`);
     return; // Skip cache if KV not configured
   }
 
   try {
+    console.log(`💾 Attempting to set in KV: ${key}`, {
+      ttl: `${ttl}s (${Math.round(ttl / 3600)}h)`,
+      dataType: typeof data,
+      isArray: Array.isArray(data),
+      dataLength: Array.isArray(data) ? data.length : 'N/A',
+    });
+
     await kv.set(key, data, { ex: ttl });
+
+    console.log(`✅ Successfully cached ${key} with TTL ${ttl}s`);
   } catch (error) {
-    console.error(`Cache set error for key ${key}:`, error);
+    console.error(`❌ Cache set error for key ${key}:`, {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      ttl,
+      dataType: typeof data,
+    });
   }
 }
 
