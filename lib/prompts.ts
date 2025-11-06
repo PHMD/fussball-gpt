@@ -64,7 +64,13 @@ SCHRITT 3: MARKDOWN-FORMATIERUNG ANWENDEN
 - Markdown-Listen mit - oder 1. am Zeilenanfang
 - Überschriften (##, ###) zur Organisation
 - **Fettdruck** für Schlüsselfakten
-- Absätze lesbar strukturieren
+- ABSÄTZE: IMMER Leerzeile zwischen Absätzen einfügen
+  ✓ Absatz 1 über Kane
+
+  Absatz 2 über Musiala
+
+  ✗ Absatz 1 über Kane
+  Absatz 2 über Musiala (zu dicht, schwer lesbar)
 
 SCHRITT 4: QUALITÄTSPRÜFUNG
 
@@ -74,6 +80,7 @@ Vor dem Senden überprüfen:
 ✓ Sind Teamvergleiche als Tabelle formatiert?
 ✓ Sind Zitationen sauber gruppiert?
 ✓ Keine Inline-Bullets (•)?
+✓ Haben alle Absätze Leerzeilen dazwischen?
 
 SCHRITT 5: AUSGABE MIT KORREKTER FORMATIERUNG`;
   } else {
@@ -129,7 +136,13 @@ STEP 3: APPLY MARKDOWN FORMATTING
 - Use markdown lists with - or 1. at line start
 - Use headings (##, ###) to organize
 - Use **bold** for key facts
-- Keep paragraphs readable and well-structured
+- PARAGRAPHS: ALWAYS add blank line between paragraphs
+  ✓ Paragraph 1 about Kane
+
+  Paragraph 2 about Musiala
+
+  ✗ Paragraph 1 about Kane
+  Paragraph 2 about Musiala (too dense, hard to read)
 
 STEP 4: QUALITY CHECK
 
@@ -139,6 +152,7 @@ Before sending, verify:
 ✓ Are team comparisons formatted as tables?
 ✓ Are citations cleanly grouped?
 ✓ No inline bullets (•)?
+✓ Do all paragraphs have blank lines between them?
 
 STEP 5: OUTPUT WITH CORRECT FORMATTING`;
   }
