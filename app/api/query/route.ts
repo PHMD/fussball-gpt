@@ -22,6 +22,7 @@ import { fetchBettingOdds } from '@/lib/api-clients/the-odds-api';
 import { toContextString } from '@/lib/models';
 import { buildSystemPrompt } from '@/lib/prompts';
 import { DEFAULT_PROFILE, type UserProfile } from '@/lib/user-config';
+import { classifyQuery, shouldFetchSource, estimateTokenSavings } from '@/lib/query-classifier';
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
@@ -68,7 +69,25 @@ export async function POST(req: NextRequest) {
   // Use provided user profile or fallback to default
   const profile: UserProfile = userProfile || DEFAULT_PROFILE;
 
-  // Fetch Bundesliga data sources (excluding news - handled separately below)
+  // Extract user query for classification
+  const lastMessage = messages[messages.length - 1];
+  const textPart = lastMessage?.parts?.find(part => part.type === 'text');
+  const userQuery = textPart?.type === 'text' ? textPart.text : 'Bundesliga';
+
+  // Classify query to determine required data sources
+  const classification = classifyQuery(userQuery);
+  const tokenSavings = estimateTokenSavings(classification);
+
+  console.log('🧠 Query Classification:', {
+    query: userQuery.substring(0, 100),
+    category: classification.category,
+    confidence: classification.confidence.toFixed(2),
+    requiredSources: classification.requiredSources,
+    matchedKeywords: classification.matchedKeywords,
+    tokenSavings: `${tokenSavings.savingsPercent}% (${tokenSavings.optimizedTokens.toLocaleString()} tokens vs ${tokenSavings.baselineTokens.toLocaleString()})`,
+  });
+
+  // Conditionally fetch data sources based on classification
   const [
     playerStats,
     injuries,
@@ -77,25 +96,20 @@ export async function POST(req: NextRequest) {
     teamForm,
     bettingOdds,
   ] = await Promise.all([
-    fetchPlayerStats(),
-    fetchInjuries(),
-    fetchBundesligaStandings(),
-    fetchRecentResults(),
-    fetchTeamForm(),
-    fetchBettingOdds(),
+    shouldFetchSource('player_stats', classification) ? fetchPlayerStats() : Promise.resolve([]),
+    shouldFetchSource('injuries', classification) ? fetchInjuries() : Promise.resolve([]),
+    shouldFetchSource('standings', classification) ? fetchBundesligaStandings() : Promise.resolve([]),
+    shouldFetchSource('results', classification) ? fetchRecentResults() : Promise.resolve([]),
+    shouldFetchSource('team_form', classification) ? fetchTeamForm() : Promise.resolve([]),
+    shouldFetchSource('betting_odds', classification) ? fetchBettingOdds() : Promise.resolve({}),
   ]);
 
   // News source strategy: Brave Search primary (query-specific, 8.5x more content)
   // Falls back to RSS if Brave unavailable/fails, then empty array if both fail
   let newsArticles = [];
 
-  // Extract user query from last message for query-specific search
-  const lastMessage = messages[messages.length - 1];
-  const textPart = lastMessage?.parts?.find(part => part.type === 'text');
-  const userQuery = textPart?.type === 'text' ? textPart.text : 'Bundesliga';
-
-  // Try Brave Search first (primary source)
-  if (process.env.BRAVE_SEARCH_API_KEY) {
+  // Only fetch news if required by classification
+  if (shouldFetchSource('news', classification) && process.env.BRAVE_SEARCH_API_KEY) {
     try {
       console.log('🔍 Fetching from Brave Search (primary source)...');
       newsArticles = await fetchKickerArticlesBrave(userQuery, 10);
@@ -111,7 +125,7 @@ export async function POST(req: NextRequest) {
         console.log('→ No news available, AI will handle gracefully');
       }
     }
-  } else {
+  } else if (shouldFetchSource('news', classification)) {
     // No Brave API key - use RSS fallback
     console.log('📰 Using RSS (no Brave API key configured)');
     try {
@@ -121,6 +135,8 @@ export async function POST(req: NextRequest) {
       console.error('⚠️ RSS failed:', rssError);
       console.log('→ No news available, AI will handle gracefully');
     }
+  } else {
+    console.log('⏭️  Skipping news fetch (not required for this query type)');
   }
 
   // Build context string for LLM with all data sources

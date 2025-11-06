@@ -249,15 +249,19 @@ async function fetchInjuriesInternal(
     // Validate response structure
     const validated = ApiFootballInjuryResponseSchema.parse(data);
 
-    const injuries: InjuryData[] = validated.response.map((injuryData) => ({
-      player_name: injuryData.player.name,
-      team: injuryData.team.name,
-      injury_type: 'Unknown', // API doesn't provide injury type in this endpoint
-      date: injuryData.fixture?.date || new Date().toISOString(),
-      league: injuryData.league?.name || 'Bundesliga',
-    }));
+    // CRITICAL: Limit to 30 most recent injuries to reduce token usage
+    // Was returning 647 records (8000 tokens!) - now limited to ~30 records (~400 tokens)
+    const injuries: InjuryData[] = validated.response
+      .slice(0, 30) // Only take first 30 injuries
+      .map((injuryData) => ({
+        player_name: injuryData.player.name,
+        team: injuryData.team.name,
+        injury_type: 'Unknown', // API doesn't provide injury type in this endpoint
+        date: injuryData.fixture?.date || new Date().toISOString(),
+        league: injuryData.league?.name || 'Bundesliga',
+      }));
 
-    console.log(`Fetched ${injuries.length} injury records from API-Football`);
+    console.log(`Fetched ${injuries.length} injury records from API-Football (limited to 30 for token efficiency)`);
     return injuries;
   } catch (error) {
     if (error instanceof z.ZodError) {
