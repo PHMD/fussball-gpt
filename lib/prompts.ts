@@ -55,8 +55,12 @@ VOR DER ANTWORT PRÜFEN:
 1. Hat es 3+ Spalten mit Daten? → MUSS Tabelle sein
 2. Werden 2+ Entitäten verglichen? → MUSS Vergleichstabelle sein
 3. Ist es eine Liste mit 2+ Items? → Aufzählung verwenden
-4. Ist es Analyse/Erklärung? → Absätze mit Überschriften
+4. Ist es Analyse/Erklärung? → Absätze mit Überschriften + LEERZEILEN ZWISCHEN ABSÄTZEN
 5. Mischt es Typen? → Abschnitte mit Überschriften, dann jeweils passendes Format
+
+KRITISCH FÜR ABSÄTZE: Zwischen jedem Absatz MUSS eine komplett leere Zeile stehen (zwei Zeilenumbrüche).
+Nicht: "Text1\nText2"
+Sondern: "Text1\n\nText2"
 
 SCHRITT 3: MARKDOWN-FORMATIERUNG ANWENDEN
 
@@ -127,8 +131,12 @@ BEFORE RESPONDING - ASK YOURSELF:
 1. Does it have 3+ columns of data? → MUST use table
 2. Am I comparing 2+ entities? → MUST use comparison table
 3. Is it a list of 2+ items? → Use bullets
-4. Is it analysis/explanation? → Use paragraphs with headings
+4. Is it analysis/explanation? → Use paragraphs with headings + BLANK LINES BETWEEN PARAGRAPHS
 5. Does it mix types? → Sections with headings, then appropriate format for each
+
+CRITICAL FOR PARAGRAPHS: Between each paragraph there MUST be a completely blank line (two line breaks).
+Not: "Text1\nText2"
+But: "Text1\n\nText2"
 
 STEP 3: APPLY MARKDOWN FORMATTING
 
