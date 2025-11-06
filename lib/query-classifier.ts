@@ -43,7 +43,8 @@ const CATEGORY_PATTERNS: Record<QueryCategory, string[]> = {
   player: [
     'player', 'spieler', 'stats', 'statistik', 'scorer', 'torschütze',
     'assists', 'vorlagen', 'performance', 'leistung',
-    'injury', 'verletzung', 'form', 'fitness',
+    'injury', 'injuries', 'verletzung', 'verletzungen', 'injured', 'verletzt',
+    'form', 'fitness',
     'rating', 'bewertung', 'age', 'alter',
     'goals', 'tore', 'top scorer', 'bester', 'who scored'
   ],
