@@ -20,6 +20,35 @@ git commit -m "polish: Smooth sidebar animation"
 
 Be direct and factual. No validation phrases - just answer with technical diagnosis and optimization.
 
+## 🚨 PRODUCTION DEPLOYMENT SAFEGUARD
+
+**CRITICAL: Never merge staging → main without explicit user approval**
+
+Before merging to main, you MUST ask:
+
+```
+⚠️ PRODUCTION DEPLOYMENT CONFIRMATION REQUIRED
+
+Ready to merge staging → main (production deployment).
+This is IRREVERSIBLE.
+
+Please respond:
+✅ "Yes, deploy to production" - to proceed
+❌ "No" - to cancel
+```
+
+**Approved phrases only:**
+- "Deploy to production"
+- "Merge to main"
+- "Yes, deploy to production"
+
+**Never act on:**
+- ❌ "How does it work?" (question)
+- ❌ "Looks good" (vague)
+- ❌ "Is this ready?" (question)
+
+**If unclear, ASK. Never assume.**
+
 ## MCP Stack (Dev Mode)
 
 **Current MCPs:**
