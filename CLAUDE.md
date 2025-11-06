@@ -23,6 +23,43 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 Be direct and factual. No validation phrases like "You're absolutely right" or "Great question!" - just answer with technical diagnosis and optimization.
 
+## 🚨 PRODUCTION DEPLOYMENT SAFEGUARD
+
+**CRITICAL RULE: Never merge to `main` or deploy to production without explicit approval**
+
+Before ANY operation that affects the `main` branch, you MUST:
+
+1. **Ask for explicit confirmation** with this exact template:
+
+```
+⚠️ PRODUCTION DEPLOYMENT CONFIRMATION REQUIRED
+
+I am about to execute:
+- [specific git command or action]
+- [what this affects - e.g., "merge staging → main"]
+- [deployment impact - e.g., "push to production"]
+
+This action is IRREVERSIBLE and affects production.
+
+Please respond with one of:
+✅ "Yes, deploy to production" - to proceed
+❌ "No" or anything else - to cancel
+```
+
+2. **Wait for explicit approval phrase:**
+   - "Deploy to production"
+   - "Merge to main"
+   - "Yes, deploy to production"
+   - "You are approved to deploy"
+
+3. **NEVER act on ambiguous phrases:**
+   - ❌ "How does it work?" (question, not command)
+   - ❌ "Looks good" (too vague)
+   - ❌ "Is this ready?" (question)
+   - ❌ "What's the workflow?" (asking for info)
+
+**If in doubt, ASK. Never assume permission to deploy.**
+
 ## MCP Stack (Orchestrator Mode)
 
 **Current MCPs:**
