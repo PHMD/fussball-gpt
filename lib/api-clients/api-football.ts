@@ -11,7 +11,8 @@ import { fetchWithCache, cacheKeys, CACHE_DURATIONS } from '../cache';
 
 const API_FOOTBALL_BASE_URL = 'https://v3.football.api-sports.io';
 const BUNDESLIGA_LEAGUE_ID = 78;
-const CURRENT_SEASON = '2025'; // 2024/25 season
+// Free tier only supports 2021-2023. Current season requires paid plan (~$15/mo)
+const CURRENT_SEASON = '2023'; // 2023/24 - last free tier season
 
 /**
  * Check if API-Football is configured
