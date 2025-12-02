@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpIcon, SquareIcon } from 'lucide-react';
-import { ResponseWithCitations } from '@/components/ui/shadcn-io/ai/response-with-citations';
 import {
   Conversation,
   ConversationContent,
@@ -22,14 +21,14 @@ import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
-import { CitationSourceCard } from '@/components/ui/citation-source-card';
+import { AssistantMessageText, SourcesCarousel } from '@/components/ui/assistant-message';
+import type { Article } from '@/lib/utils/parse-citations';
+
+/** Part type for streamed article data in assistant messages */
+interface DataArticlesPart {
+  type: 'data-articles';
+  data: { articles: Article[] };
+}
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
@@ -46,19 +45,8 @@ export default function ChatPage() {
     body: { userProfile: profile },
   });
 
-  // Extract articles from the last assistant message for carousel display
-  const articles = useMemo(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage?.data?.articles) return [];
-    return lastMessage.data.articles as Array<{
-      title: string;
-      url?: string;
-      image_url?: string;
-      favicon_url?: string;
-      age?: string;
-      summary?: string;
-    }>;
-  }, [messages]);
+  // Articles are now extracted per-message inside the render loop
+  // This allows each message to have its own article carousel
 
   const handleSubmit = () => {
     if (input.trim() && status === 'ready') {
@@ -74,6 +62,8 @@ export default function ChatPage() {
 
   const isGerman = profile.language === Language.GERMAN;
 
+  const hasMessages = messages.length > 0;
+
   return (
     <div className="flex flex-col h-screen relative">
       {/* Onboarding Dialog */}
@@ -85,11 +75,10 @@ export default function ChatPage() {
         />
       )}
 
-      {/* Chat Messages */}
-      <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
-        <ConversationContent className="max-w-4xl mx-auto pb-48">
-        {messages.length === 0 && (
-          <div className="text-center text-muted-foreground mt-16">
+      {/* Empty State - Centered Welcome + Input */}
+      {!hasMessages && (
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="text-center text-muted-foreground mb-8">
             <p className="text-lg mb-2">
               {isGerman ? 'Willkommen bei Fußball GPT!' : 'Welcome to Fußball GPT!'}
             </p>
@@ -145,67 +134,95 @@ export default function ChatPage() {
               </Suggestions>
             </div>
           </div>
-        )}
 
-        {messages.map((message, messageIndex) => (
-          <div key={message.id}>
-            <Message from={message.role === 'user' ? 'user' : 'assistant'}>
-              <MessageContent>
-                {message.role === 'user' ? (
-                  <div className="text-sm">
-                    {message.parts.map((part, index) => {
-                      if (part.type === 'text') {
-                        return <span key={index}>{part.text}</span>;
-                      }
-                      return null;
-                    })}
-                  </div>
-                ) : (
-                  <>
-                    {/* Article Discovery Carousel - show for last assistant message only */}
-                    {messageIndex === messages.length - 1 && articles.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
-                          {isGerman ? 'Aktuelle Artikel' : 'Recent Articles'}
-                        </h3>
-                        <Carousel opts={{ align: 'start', loop: false }} className="w-full">
-                          <CarouselContent className="-ml-2 md:-ml-4">
-                            {articles.map((article, index) => (
-                              <CarouselItem key={index} className="pl-2 md:pl-4 basis-auto">
-                                <CitationSourceCard
-                                  citation={{
-                                    text: '',
-                                    citationNumber: index + 1,
-                                    source: article.title,
-                                    url: article.url,
-                                    imageUrl: article.image_url,
-                                    faviconUrl: article.favicon_url,
-                                    age: article.age,
-                                    summary: article.summary,
-                                  }}
-                                  language={profile.language}
-                                />
-                              </CarouselItem>
-                            ))}
-                          </CarouselContent>
-                          <CarouselPrevious className="hidden md:flex" />
-                          <CarouselNext className="hidden md:flex" />
-                        </Carousel>
-                      </div>
-                    )}
-
-                    {/* Main AI Response */}
-                    <ResponseWithCitations language={profile.language}>
-                      {message.parts
-                        .map((part) => (part.type === 'text' ? part.text : ''))
-                        .join('')}
-                    </ResponseWithCitations>
-                  </>
-                )}
-              </MessageContent>
-            </Message>
+          {/* Centered Input for Empty State */}
+          <div className="w-full max-w-2xl">
+            <PromptInput
+              className="bg-muted shadow-lg"
+              value={input}
+              onValueChange={setInput}
+              onSubmit={handleSubmit}
+              isLoading={status === 'submitted' || status === 'streaming'}
+            >
+              <PromptInputTextarea
+                placeholder={
+                  isGerman
+                    ? 'Frage nach Tabelle, Spielern, Spielen...'
+                    : 'Ask about Bundesliga standings, players, fixtures...'
+                }
+                disabled={status !== 'ready'}
+              />
+              <PromptInputActions className="justify-end">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  disabled={!input.trim() || status !== 'ready'}
+                  onClick={handleSubmit}
+                >
+                  {status === 'submitted' || status === 'streaming' ? (
+                    <SquareIcon className="size-5 fill-current" />
+                  ) : (
+                    <ArrowUpIcon className="size-5" />
+                  )}
+                </Button>
+              </PromptInputActions>
+            </PromptInput>
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Chat Messages - Only shown when there are messages */}
+      {hasMessages && (
+        <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
+          <ConversationContent className="max-w-2xl mx-auto pb-48 px-4">
+
+        {messages.map((message, messageIndex) => {
+          // Extract articles from this message's parts for citation lookups
+          const messageArticles = (() => {
+            if (message.role !== 'assistant') return [];
+            const articlesPart = message.parts.find(
+              (part): part is DataArticlesPart => part.type === 'data-articles'
+            );
+            return articlesPart?.data?.articles || [];
+          })();
+
+          const messageText = message.parts
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join('');
+
+          return (
+            <div key={message.id}>
+              <Message from={message.role === 'user' ? 'user' : 'assistant'}>
+                <MessageContent>
+                  {message.role === 'user' ? (
+                    <div className="text-sm">
+                      {message.parts.map((part, index) => {
+                        if (part.type === 'text') {
+                          return <span key={index}>{part.text}</span>;
+                        }
+                        return null;
+                      })}
+                    </div>
+                  ) : (
+                    <AssistantMessageText
+                      text={messageText}
+                      articles={messageArticles}
+                    />
+                  )}
+                </MessageContent>
+              </Message>
+              {/* Sources carousel OUTSIDE MessageContent for overflow effect */}
+              {message.role === 'assistant' && (
+                <SourcesCarousel
+                  text={messageText}
+                  articles={messageArticles}
+                  language={profile.language}
+                />
+              )}
+            </div>
+          );
+        })}
 
         {(status === 'submitted' || status === 'streaming') && (
           <Message from="assistant">
@@ -230,48 +247,51 @@ export default function ChatPage() {
         )}
         </ConversationContent>
 
-        {/* Fade effect overlay - positioned above content */}
-        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
+          {/* Fade effect overlay - positioned above content */}
+          <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
 
-        <ConversationScrollButton />
-      </Conversation>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
 
-      {/* Floating Input */}
-      <div className="absolute bottom-12 left-0 right-0 z-10 px-4">
-        <div className="max-w-4xl mx-auto">
-          <PromptInput
-            className="bg-muted shadow-lg"
-            value={input}
-            onValueChange={setInput}
-            onSubmit={handleSubmit}
-            isLoading={status === 'submitted' || status === 'streaming'}
-          >
-            <PromptInputTextarea
-              placeholder={
-                isGerman
-                  ? 'Frage nach Tabelle, Spielern, Spielen...'
-                  : 'Ask about Bundesliga standings, players, fixtures...'
-              }
-              disabled={status !== 'ready'}
-            />
-            <PromptInputActions className="justify-end">
-              <Button
-                type="submit"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                disabled={!input.trim() || status !== 'ready'}
-                onClick={handleSubmit}
-              >
-                {status === 'submitted' || status === 'streaming' ? (
-                  <SquareIcon className="size-5 fill-current" />
-                ) : (
-                  <ArrowUpIcon className="size-5" />
-                )}
-              </Button>
-            </PromptInputActions>
-          </PromptInput>
+      {/* Floating Input - Only shown when there are messages */}
+      {hasMessages && (
+        <div className="fixed bottom-0 left-0 right-0 z-10 px-4 py-4 bg-background">
+          <div className="max-w-2xl mx-auto">
+            <PromptInput
+              className="bg-muted shadow-lg"
+              value={input}
+              onValueChange={setInput}
+              onSubmit={handleSubmit}
+              isLoading={status === 'submitted' || status === 'streaming'}
+            >
+              <PromptInputTextarea
+                placeholder={
+                  isGerman
+                    ? 'Frage nach Tabelle, Spielern, Spielen...'
+                    : 'Ask about Bundesliga standings, players, fixtures...'
+                }
+                disabled={status !== 'ready'}
+              />
+              <PromptInputActions className="justify-end">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  disabled={!input.trim() || status !== 'ready'}
+                  onClick={handleSubmit}
+                >
+                  {status === 'submitted' || status === 'streaming' ? (
+                    <SquareIcon className="size-5 fill-current" />
+                  ) : (
+                    <ArrowUpIcon className="size-5" />
+                  )}
+                </Button>
+              </PromptInputActions>
+            </PromptInput>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,76 +1,52 @@
 'use client';
 
-import { parseCitations } from '@/lib/utils/parse-citations';
+import { parseCitations, type Article } from '@/lib/utils/parse-citations';
 import { Response, type ResponseProps } from './response';
 import { cn } from '@/lib/utils';
-import { CitationSourceCard } from '@/components/ui/citation-source-card';
+import { useMemo, useEffect } from 'react';
 
 export interface ResponseWithCitationsProps extends ResponseProps {
   language?: 'en' | 'de';
+  articles?: Article[]; // Pre-streamed articles for [N] citation lookups
+  onCitedIndicesChange?: (indices: Set<number>) => void; // Callback when cited indices change
 }
 
 /**
  * Response component with automatic citation parsing and markdown rendering
  *
- * Parses LLM responses for citation markers (e.g., "via API-Football"),
- * renders markdown content using the unified Response component, and displays sources section.
+ * Parses LLM responses for [N] citation markers and transforms them into
+ * clickable links to the actual article URLs.
+ *
+ * Articles are filtered to only show cited ones in the carousel above.
  */
 export function ResponseWithCitations({
   children,
   language = 'en',
+  articles = [],
+  onCitedIndicesChange,
   className,
   ...props
 }: ResponseWithCitationsProps) {
-  // Only parse if children is a string
-  if (typeof children !== 'string') {
-    return <Response {...props}>{children}</Response>;
-  }
+  // Parse citations and get transformed content with cited indices
+  const { content, citedIndices } = useMemo(() => {
+    if (typeof children !== 'string') {
+      return { content: children, citedIndices: new Set<number>() };
+    }
+    return parseCitations(children, articles);
+  }, [children, articles]);
 
-  const parsed = parseCitations(children);
+  // Notify parent of cited indices changes (for filtering articles)
+  // Always notify, even when empty, so parent can clear stale state
+  useEffect(() => {
+    if (onCitedIndicesChange) {
+      onCitedIndicesChange(citedIndices);
+    }
+  }, [citedIndices, onCitedIndicesChange]);
 
-  // If no citations found, render normal Response (with markdown)
-  if (parsed.citations.length === 0) {
-    return <Response {...props}>{children}</Response>;
-  }
-
-  // Build full content with citation superscripts
-  const fullContent = parsed.segments
-    .map((segment) => segment.content)
-    .join(' ');
-
-  // Bilingual labels
-  const labels = {
-    sources: language === 'de' ? 'Quellen von Kicker' : 'Sources from Kicker',
-  };
-
+  // Render response with markdown
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* AI Response with Markdown - using unified Response component */}
-      <Response {...props}>{fullContent}</Response>
-
-      {/* Sources Section - Only show article sources, not background APIs */}
-      {(() => {
-        // Filter out background API sources (API-Football, TheSportsDB, The Odds API)
-        const backgroundAPIs = ['API-Football', 'TheSportsDB', 'The Odds API'];
-        const articleCitations = parsed.citations.filter(
-          (citation) => !backgroundAPIs.includes(citation.source)
-        );
-
-        return articleCitations.length > 0 ? (
-          <div className="border-t pt-6 mt-8">
-            <h3 className="text-base font-semibold mb-4">{labels.sources}</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {articleCitations.map((citation) => (
-                <CitationSourceCard
-                  key={citation.citationNumber}
-                  citation={citation}
-                  language={language}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null;
-      })()}
+    <div className={cn(className)}>
+      <Response {...props}>{content}</Response>
     </div>
   );
 }

@@ -44,11 +44,11 @@ export interface UserProfile {
 }
 
 /**
- * Default user profile (English, balanced, casual fan)
+ * Default user profile (English, detailed, casual fan)
  */
 export const DEFAULT_PROFILE: UserProfile = {
   language: Language.ENGLISH,
-  detailLevel: DetailLevel.BALANCED,
+  detailLevel: DetailLevel.DETAILED,
   persona: Persona.CASUAL_FAN,
   interests: [],
 };

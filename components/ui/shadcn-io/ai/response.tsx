@@ -198,16 +198,53 @@ const components: Options['components'] = {
       {children}
     </span>
   ),
-  a: ({ node, children, className, ...props }) => (
-    <a
-      className={cn('font-medium text-primary underline', className)}
-      rel="noreferrer"
-      target="_blank"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
+  a: ({ node, children, className, href, ...props }) => {
+    // Check if this is a citation link (link text is just a number like "1", "2", etc.)
+    // Only detect citations for pure text children (single string element)
+    let linkText = '';
+    if (typeof children === 'string') {
+      linkText = children;
+    } else if (Array.isArray(children) && children.length === 1 && typeof children[0] === 'string') {
+      linkText = children[0];
+    }
+    const isCitation = /^\d+$/.test(linkText.trim());
+
+    if (isCitation) {
+      return (
+        <a
+          href={href}
+          className={cn(
+            'inline-flex items-center justify-center',
+            'min-w-[1.25rem] h-5 px-1.5 mx-0.5',
+            'text-xs font-semibold',
+            'bg-primary/10 text-primary',
+            'rounded-full',
+            'hover:bg-primary/20 transition-colors',
+            'no-underline cursor-pointer',
+            className
+          )}
+          rel="noreferrer"
+          target="_blank"
+          title="Open source article"
+        >
+          {children}
+        </a>
+      );
+    }
+
+    // Regular link styling
+    return (
+      <a
+        className={cn('font-medium text-primary underline', className)}
+        rel="noreferrer"
+        target="_blank"
+        href={href}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
   h1: ({ node, children, className, ...props }) => (
     <h1
       className={cn('mt-6 mb-2 font-semibold text-3xl', className)}
@@ -367,7 +404,13 @@ export const Response = memo(
     return (
       <div
         className={cn(
-          'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+          'size-full',
+          // Prose-like typography for readability
+          'text-base leading-7',
+          // Paragraph spacing
+          '[&>p]:mb-4 [&>p:last-child]:mb-0',
+          // Remove top margin from first element
+          '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           className
         )}
         {...props}

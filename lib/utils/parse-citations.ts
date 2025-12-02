@@ -1,260 +1,127 @@
 /**
  * Citation parser utility
  *
- * Parses LLM responses for citation markers (e.g., "via API-Football")
- * and converts them into structured citation data for InlineCitation components.
+ * Parses LLM responses for [N] citation markers and transforms them into
+ * clickable links to article URLs. Also tracks which citations were used.
  */
 
-export interface Citation {
-  text: string; // The cited text segment
-  source: string; // Source name (e.g., "API-Football")
-  url?: string; // Optional source URL
-  imageUrl?: string; // Optional thumbnail image URL
-  faviconUrl?: string; // Optional favicon URL
-  age?: string; // Optional age like "1 day ago"
-  description?: string; // Optional source description
-  citationNumber?: number; // Sequential number for citation (1, 2, 3, etc.)
+export interface Article {
+  title: string;
+  url?: string;
+  image_url?: string;
+  favicon_url?: string;
+  age?: string;
+  summary?: string;
 }
 
+export interface Citation {
+  text: string;
+  citationNumber: number;
+  source: string;
+  url?: string;
+  imageUrl?: string;
+  faviconUrl?: string;
+  age?: string;
+  summary?: string;
+}
+
+export interface ParseResult {
+  /** Transformed text with [N] replaced by markdown links */
+  content: string;
+  /** Set of article indices (0-based) that were cited */
+  citedIndices: Set<number>;
+  /** List of citations with metadata */
+  citations: Citation[];
+  /** Map from original article index (0-based) to new display index (1-based) */
+  indexMap: Map<number, number>;
+}
+
+/**
+ * Parse LLM response text and transform [N] patterns into clickable links
+ * with sequential renumbering.
+ *
+ * Input: "Bayern won 3-0 [4] against Dortmund [1] and drew [5]."
+ * Output: "Bayern won 3-0 [1](url4) against Dortmund [2](url1) and drew [3](url5)."
+ *
+ * Citations are renumbered sequentially (1, 2, 3...) in order of first appearance.
+ * The indexMap allows mapping back to original articles.
+ *
+ * @param text - The LLM response text
+ * @param articles - Pre-streamed articles array for lookups
+ */
+export function parseCitations(text: string, articles: Article[] = []): ParseResult {
+  const citedIndices = new Set<number>();
+  const citations: Citation[] = [];
+  const indexMap = new Map<number, number>(); // original 0-based index -> new 1-based display number
+
+  const citationRegex = /\[(\d+)\](?!\()/g;
+
+  // First pass: collect cited indices in order of first appearance
+  const orderedIndices: number[] = [];
+  let match;
+  while ((match = citationRegex.exec(text)) !== null) {
+    const num = parseInt(match[1], 10);
+    const articleIndex = num - 1;
+    if (articleIndex >= 0 && articleIndex < articles.length && !citedIndices.has(articleIndex)) {
+      citedIndices.add(articleIndex);
+      orderedIndices.push(articleIndex);
+    }
+  }
+
+  // Build index map: original index -> new sequential number (1-based)
+  orderedIndices.forEach((originalIndex, i) => {
+    indexMap.set(originalIndex, i + 1);
+  });
+
+  // Second pass: replace citations with new sequential numbers
+  const content = text.replace(citationRegex, (matchStr, numStr) => {
+    const num = parseInt(numStr, 10);
+    const articleIndex = num - 1;
+
+    if (articleIndex >= 0 && articleIndex < articles.length) {
+      const article = articles[articleIndex];
+      const newDisplayNum = indexMap.get(articleIndex);
+
+      if (newDisplayNum !== undefined) {
+        // Track citation metadata with new number
+        if (!citations.find(c => c.citationNumber === newDisplayNum)) {
+          citations.push({
+            text: '',
+            citationNumber: newDisplayNum,
+            source: article.title,
+            url: article.url,
+            imageUrl: article.image_url,
+            faviconUrl: article.favicon_url,
+            age: article.age,
+            summary: article.summary,
+          });
+        }
+
+        // Transform to markdown link with NEW display number
+        if (article.url) {
+          return `[${newDisplayNum}](${article.url})`;
+        }
+        return `[${newDisplayNum}]`;
+      }
+    }
+
+    return matchStr;
+  });
+
+  // Sort citations by new number
+  citations.sort((a, b) => a.citationNumber - b.citationNumber);
+
+  return { content, citedIndices, citations, indexMap };
+}
+
+/**
+ * Legacy interface for backwards compatibility
+ */
 export interface ParsedResponse {
   segments: Array<{
     type: 'text' | 'citation';
     content: string;
     citation?: Citation;
   }>;
-  citations: Citation[]; // Unique list of all citations in order
-}
-
-/**
- * Convert number to superscript Unicode characters
- * Example: 1 → ¹, 2 → ², 10 → ¹⁰
- */
-function toSuperscript(num: number): string {
-  const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-  };
-
-  return String(num)
-    .split('')
-    .map((digit) => superscriptMap[digit] || digit)
-    .join('');
-}
-
-/**
- * Source metadata mapping
- */
-const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = {
-  'API-Football': {
-    url: 'https://api-football.com',
-    description: 'Professional football API for player statistics and match data',
-  },
-  'TheSportsDB': {
-    url: 'https://thesportsdb.com',
-    description: 'Free sports database for standings, results, and team form',
-  },
-  'The Odds API': {
-    url: 'https://the-odds-api.com',
-    description: 'Real-time betting odds from multiple bookmakers',
-  },
-  // Note: Kicker articles now use individual article titles as source names,
-  // not the generic "Kicker RSS" label
-};
-
-/**
- * Parse LLM response text and extract citation markers
- *
- * Detects patterns like:
- * - "Kane has 12 goals (via API-Football)"
- * - "Bayern leads (via TheSportsDB)"
- *
- * Returns structured segments for rendering with InlineCitation components.
- */
-export function parseCitations(text: string): ParsedResponse {
-  const segments: ParsedResponse['segments'] = [];
-  const citationMap = new Map<string, Citation>(); // Track unique citations by URL+source
-  let citationCounter = 0;
-
-  // Regex to match citation patterns: (via Source Name) or (via Source Name URL)
-  const citationRegex = /\(via ([^)]+)\)/g;
-
-  let lastIndex = 0;
-  let match;
-
-  while ((match = citationRegex.exec(text)) !== null) {
-    const citationStart = match.index;
-    const citationEnd = citationRegex.lastIndex;
-    const rawSource = match[1];
-
-    // Extract URL, image URL, favicon URL, and age
-    // Format: "Source Name URL [ImageURL] [FaviconURL] [Age]"
-    let sourceName = rawSource;
-    let sourceUrl: string | undefined;
-    let imageUrl: string | undefined;
-    let faviconUrl: string | undefined;
-    let age: string | undefined;
-
-    // Try to match full format: "Source Name URL ImageURL FaviconURL Age"
-    const fullMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(.+)$/);
-    if (fullMatch) {
-      sourceName = fullMatch[1].trim();
-      sourceUrl = fullMatch[2];
-      imageUrl = fullMatch[3];
-      faviconUrl = fullMatch[4];
-      age = fullMatch[5].trim();
-    } else {
-      // Try format with 3 URLs: "Source Name URL ImageURL FaviconURL"
-      const threeUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
-      if (threeUrlMatch) {
-        sourceName = threeUrlMatch[1].trim();
-        sourceUrl = threeUrlMatch[2];
-        imageUrl = threeUrlMatch[3];
-        faviconUrl = threeUrlMatch[4];
-      } else {
-        // Try format with 2 URLs: "Source Name URL ImageURL"
-        const twoUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
-        if (twoUrlMatch) {
-          sourceName = twoUrlMatch[1].trim();
-          sourceUrl = twoUrlMatch[2];
-          imageUrl = twoUrlMatch[3];
-        } else {
-          // Fallback to single URL: "Source Name URL"
-          const singleUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
-          if (singleUrlMatch) {
-            sourceName = singleUrlMatch[1].trim();
-            sourceUrl = singleUrlMatch[2];
-          }
-        }
-      }
-    }
-
-    // Find the sentence or clause before the citation
-    // Look backwards for sentence boundaries (., !, ?, or start of text)
-    let textStart = lastIndex;
-    let textEnd = citationStart;
-
-    // Find sentence start
-    const textBefore = text.substring(textStart, textEnd);
-    const sentenceBoundary = Math.max(
-      textBefore.lastIndexOf('. '),
-      textBefore.lastIndexOf('! '),
-      textBefore.lastIndexOf('? '),
-      textBefore.lastIndexOf('\n')
-    );
-
-    if (sentenceBoundary > -1) {
-      textStart = textStart + sentenceBoundary + 1;
-    }
-
-    // Add text before citation (if any)
-    if (textStart > lastIndex) {
-      const beforeText = text.substring(lastIndex, textStart).trim();
-      if (beforeText) {
-        segments.push({
-          type: 'text',
-          content: beforeText,
-        });
-      }
-    }
-
-    // Add cited text segment
-    const citedText = text.substring(textStart, textEnd).trim();
-    if (citedText) {
-      // Use URL from citation if provided, otherwise fall back to metadata
-      const metadata = SOURCE_METADATA[sourceName] || {};
-      const finalUrl = sourceUrl || metadata.url;
-
-      // CRITICAL: Deduplicate by URL only, NOT by source name
-      // This ensures each article gets its own citation even if they share the same source
-      const citationKey = finalUrl || `${sourceName}:${citationCounter + 1}`;
-
-      // Check if we've seen this citation before (by URL)
-      let citation = citationMap.get(citationKey);
-      if (!citation) {
-        // New citation - assign next number
-        citationCounter++;
-        citation = {
-          text: citedText,
-          source: sourceName,
-          url: finalUrl,
-          imageUrl: imageUrl, // Include image URL if present
-          faviconUrl: faviconUrl, // Include favicon URL if present
-          age: age, // Include age if present
-          description: metadata.description || 'Article from Brave Search',
-          citationNumber: citationCounter,
-        };
-        citationMap.set(citationKey, citation);
-      }
-
-      // Generate markdown with clickable superscript citation number
-      const superscript = toSuperscript(citation.citationNumber!);
-      const contentWithCitation = `${citedText}[${superscript}](#citation-${citation.citationNumber})`;
-
-      segments.push({
-        type: 'citation',
-        content: contentWithCitation,
-        citation,
-      });
-    }
-
-    lastIndex = citationEnd;
-  }
-
-  // Add remaining text after last citation
-  if (lastIndex < text.length) {
-    const remainingText = text.substring(lastIndex).trim();
-    if (remainingText) {
-      segments.push({
-        type: 'text',
-        content: remainingText,
-      });
-    }
-  }
-
-  // If no citations found, return entire text as one segment
-  if (segments.length === 0) {
-    segments.push({
-      type: 'text',
-      content: text,
-    });
-  }
-
-  // Convert citation map to array sorted by citation number
-  const citations = Array.from(citationMap.values()).sort(
-    (a, b) => (a.citationNumber || 0) - (b.citationNumber || 0)
-  );
-
-  return { segments, citations };
-}
-
-/**
- * Group consecutive text segments (optimization)
- */
-export function optimizeSegments(parsed: ParsedResponse): ParsedResponse {
-  const optimized: ParsedResponse['segments'] = [];
-
-  for (const segment of parsed.segments) {
-    const lastSegment = optimized[optimized.length - 1];
-
-    // Merge consecutive text segments
-    if (
-      segment.type === 'text' &&
-      lastSegment &&
-      lastSegment.type === 'text'
-    ) {
-      lastSegment.content += ' ' + segment.content;
-    } else {
-      optimized.push(segment);
-    }
-  }
-
-  return { segments: optimized, citations: parsed.citations };
+  citations: Citation[];
 }
