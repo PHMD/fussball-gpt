@@ -3,46 +3,49 @@
 import { parseCitations, type Article } from '@/lib/utils/parse-citations';
 import { Response, type ResponseProps } from './response';
 import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 
 export interface ResponseWithCitationsProps extends ResponseProps {
   language?: 'en' | 'de';
   articles?: Article[]; // Pre-streamed articles for [N] citation lookups
+  onCitedIndicesChange?: (indices: Set<number>) => void; // Callback when cited indices change
 }
 
 /**
  * Response component with automatic citation parsing and markdown rendering
  *
- * Parses LLM responses for citation markers:
- * - (via [1]), (via [2]) - article references (looks up from articles prop)
- * - (via API-Football) - API source references
+ * Parses LLM responses for [N] citation markers and transforms them into
+ * clickable links to the actual article URLs.
  *
- * Articles are shown in carousel above, so we just render inline citation superscripts.
+ * Articles are filtered to only show cited ones in the carousel above.
  */
 export function ResponseWithCitations({
   children,
   language = 'en',
   articles = [],
+  onCitedIndicesChange,
   className,
   ...props
 }: ResponseWithCitationsProps) {
-  // Only parse if children is a string
-  if (typeof children !== 'string') {
-    return <Response {...props}>{children}</Response>;
-  }
+  // Parse citations and get transformed content with cited indices
+  const { content, citedIndices } = useMemo(() => {
+    if (typeof children !== 'string') {
+      return { content: children, citedIndices: new Set<number>() };
+    }
+    return parseCitations(children, articles);
+  }, [children, articles]);
 
-  // Parse citations with articles array for [N] lookups
-  const parsed = parseCitations(children, articles);
-
-  // Build full content with citation superscripts
-  const fullContent = parsed.segments
-    .map((segment) => segment.content)
-    .join(' ');
+  // Notify parent of cited indices changes (for filtering articles)
+  useMemo(() => {
+    if (onCitedIndicesChange && citedIndices.size > 0) {
+      onCitedIndicesChange(citedIndices);
+    }
+  }, [citedIndices, onCitedIndicesChange]);
 
   // Render response with markdown
-  // Articles are already shown in carousel above, no need for sources section
   return (
     <div className={cn(className)}>
-      <Response {...props}>{fullContent}</Response>
+      <Response {...props}>{content}</Response>
     </div>
   );
 }

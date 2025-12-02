@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/prompt-input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpIcon, SquareIcon } from 'lucide-react';
-import { ResponseWithCitations } from '@/components/ui/shadcn-io/ai/response-with-citations';
 import {
   Conversation,
   ConversationContent,
@@ -22,7 +21,7 @@ import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
-import { CitationSourceCard } from '@/components/ui/citation-source-card';
+import { AssistantMessage } from '@/components/ui/assistant-message';
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
@@ -160,41 +159,13 @@ export default function ChatPage() {
                       })}
                     </div>
                   ) : (
-                    <>
-                      {/* Article Sources - scrollable row like old sources section */}
-                      {messageArticles.length > 0 && (
-                        <div className="mb-6">
-                          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
-                            {isGerman ? 'Quellen' : 'Sources'}
-                          </h3>
-                          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                            {messageArticles.map((article, index) => (
-                              <CitationSourceCard
-                                key={index}
-                                citation={{
-                                  text: '',
-                                  citationNumber: index + 1,
-                                  source: article.title,
-                                  url: article.url,
-                                  imageUrl: article.image_url,
-                                  faviconUrl: article.favicon_url,
-                                  age: article.age,
-                                  summary: article.summary,
-                                }}
-                                language={profile.language}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Main AI Response - pass articles for [N] citation lookups */}
-                      <ResponseWithCitations language={profile.language} articles={messageArticles}>
-                        {message.parts
-                          .map((part) => (part.type === 'text' ? part.text : ''))
-                          .join('')}
-                      </ResponseWithCitations>
-                    </>
+                    <AssistantMessage
+                      text={message.parts
+                        .map((part) => (part.type === 'text' ? part.text : ''))
+                        .join('')}
+                      articles={messageArticles}
+                      language={profile.language}
+                    />
                   )}
                 </MessageContent>
               </Message>

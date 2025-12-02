@@ -143,30 +143,26 @@ export function getSourceAttributionRules(language: Language): string {
   if (language === Language.GERMAN) {
     return `
 <citation_rules>
-JEDE Faktenaussage braucht eine Quellenangabe.
-
-API-QUELLEN: (via API-Football), (via TheSportsDB), (via The Odds API)
+JEDE Faktenaussage aus Artikeln braucht eine Quellenangabe.
 
 NEWS-ARTIKEL: Artikel sind nummeriert <article id="1">, <article id="2">, etc.
-Zitiere als anklickbare Links: [[1](#citation-1)], [[2](#citation-2)], [[3](#citation-3)]
+Zitiere mit einfachen Nummern: [1], [2], [3]
 
-Beispiel: "Bayern gewann 3:0 gegen Dortmund [[2](#citation-2)]."
+Beispiel: "Bayern gewann 3:0 gegen Dortmund [2]."
 
-FORMAT: [[N](#citation-N)] wobei N die Artikelnummer ist. Der Client zeigt die Artikel oben an.
+WICHTIG: Nur die Nummer in eckigen Klammern [N]. Der Client erstellt automatisch die Links.
 </citation_rules>`;
   } else {
     return `
 <citation_rules>
-EVERY fact needs a source citation.
-
-API SOURCES: (via API-Football), (via TheSportsDB), (via The Odds API)
+EVERY fact from articles needs a source citation.
 
 NEWS ARTICLES: Articles are numbered <article id="1">, <article id="2">, etc.
-Cite as clickable links: [[1](#citation-1)], [[2](#citation-2)], [[3](#citation-3)]
+Cite with simple numbers: [1], [2], [3]
 
-Example: "Bayern won 3-0 against Dortmund [[2](#citation-2)]."
+Example: "Bayern won 3-0 against Dortmund [2]."
 
-FORMAT: [[N](#citation-N)] where N is the article number. The client displays articles above.
+IMPORTANT: Only the number in brackets [N]. The client creates the links automatically.
 </citation_rules>`;
   }
 }
@@ -245,7 +241,7 @@ function getOutputStructure(language: Language): string {
     return `
 <output_structure>
 Antworte in dieser Reihenfolge:
-1. Hauptantwort als Fließtext (KEINE Überschriften mit ##) mit **Fettdruck** für Schlüsselfakten und [[N](#citation-N)] Zitationen
+1. Hauptantwort als Fließtext (KEINE Überschriften mit ##) mit **Fettdruck** für Schlüsselfakten und [N] Zitationen
 2. Tabellen für strukturierte Daten (Spieler, Ergebnisse, Termine)
 3. Anschlussfragen (als Aufzählung mit -)
 
@@ -256,7 +252,7 @@ HINWEIS: Artikel werden automatisch über der Antwort angezeigt. Nicht im Text w
     return `
 <output_structure>
 Respond in this order:
-1. Main answer as flowing prose (NO headings with ##) with **bold** for key facts and [[N](#citation-N)] citations
+1. Main answer as flowing prose (NO headings with ##) with **bold** for key facts and [N] citations
 2. Tables for structured data (players, results, fixtures)
 3. Follow-up questions (as bullet list with -)
 

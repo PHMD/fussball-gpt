@@ -199,8 +199,10 @@ const components: Options['components'] = {
     </span>
   ),
   a: ({ node, children, className, href, ...props }) => {
-    // Check if this is a citation link (href starts with #citation-)
-    const isCitation = href?.startsWith('#citation-');
+    // Check if this is a citation link (link text is just a number like "1", "2", etc.)
+    const linkText = typeof children === 'string' ? children :
+      Array.isArray(children) && typeof children[0] === 'string' ? children[0] : '';
+    const isCitation = /^\d+$/.test(linkText.trim());
 
     if (isCitation) {
       return (
@@ -216,14 +218,9 @@ const components: Options['components'] = {
             'no-underline cursor-pointer',
             className
           )}
-          onClick={(e) => {
-            e.preventDefault();
-            const targetId = href?.replace('#', '');
-            const targetElement = document.getElementById(targetId || '');
-            if (targetElement) {
-              targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }}
+          rel="noreferrer"
+          target="_blank"
+          title="Open source article"
         >
           {children}
         </a>
