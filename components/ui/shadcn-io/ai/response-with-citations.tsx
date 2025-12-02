@@ -3,7 +3,7 @@
 import { parseCitations, type Article } from '@/lib/utils/parse-citations';
 import { Response, type ResponseProps } from './response';
 import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 export interface ResponseWithCitationsProps extends ResponseProps {
   language?: 'en' | 'de';
@@ -36,7 +36,7 @@ export function ResponseWithCitations({
   }, [children, articles]);
 
   // Notify parent of cited indices changes (for filtering articles)
-  useMemo(() => {
+  useEffect(() => {
     if (onCitedIndicesChange && citedIndices.size > 0) {
       onCitedIndicesChange(citedIndices);
     }

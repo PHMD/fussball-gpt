@@ -1,19 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ResponseWithCitations } from '@/components/ui/shadcn-io/ai/response-with-citations';
+import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { CitationSourceCard } from '@/components/ui/citation-source-card';
-import { parseCitations } from '@/lib/utils/parse-citations';
+import { parseCitations, type Article } from '@/lib/utils/parse-citations';
 import type { Language } from '@/lib/user-config';
-
-interface Article {
-  title: string;
-  url?: string;
-  image_url?: string;
-  favicon_url?: string;
-  age?: string;
-  summary?: string;
-}
 
 interface AssistantMessageProps {
   text: string;
@@ -31,8 +22,8 @@ interface AssistantMessageProps {
 export function AssistantMessage({ text, articles, language }: AssistantMessageProps) {
   const isGerman = language === 'de';
 
-  // Parse citations to find which articles were cited and get the index mapping
-  const { indexMap } = useMemo(() => {
+  // Parse citations ONCE - get transformed content and index mapping
+  const { content, indexMap } = useMemo(() => {
     return parseCitations(text, articles);
   }, [text, articles]);
 
@@ -84,10 +75,8 @@ export function AssistantMessage({ text, articles, language }: AssistantMessageP
         </div>
       )}
 
-      {/* Main AI Response */}
-      <ResponseWithCitations language={language} articles={articles}>
-        {text}
-      </ResponseWithCitations>
+      {/* Main AI Response - pass pre-computed content (already has [N](url) links) */}
+      <Response>{content}</Response>
     </>
   );
 }
