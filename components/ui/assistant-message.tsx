@@ -63,9 +63,22 @@ export function SourcesCarousel({
           {isGerman ? 'Quellen' : 'Sources'}
         </h3>
       </div>
-      {/* Full-width carousel with padding to align start with content */}
-      <div className="overflow-x-auto scrollbar-thin">
-        <div className="flex gap-3 px-4 md:px-[calc(50%-320px)] pb-2 snap-x snap-mandatory">
+      {/* Full-bleed carousel: breaks out of container to full viewport width */}
+      <div
+        className="overflow-x-auto scrollbar-none"
+        style={{
+          width: '100vw',
+          marginLeft: 'calc(-50vw + 50%)',
+        }}
+      >
+        {/* Inner flex with padding to align first card with content column */}
+        <div
+          className="flex gap-3 pb-2 snap-x snap-mandatory"
+          style={{
+            paddingLeft: 'max(1rem, calc(50vw - 336px))',
+            paddingRight: '1rem',
+          }}
+        >
           {citedArticles.map(({ article, displayNumber, originalIndex }) => (
             <CitationSourceCard
               key={originalIndex}
