@@ -48,35 +48,39 @@ export function AssistantMessage({ text, articles, language }: AssistantMessageP
 
   return (
     <>
-      {/* Article Sources - only show cited articles with sequential numbers */}
+      {/* Main AI Response - pass pre-computed content (already has [N](url) links) */}
+      <Response>{content}</Response>
+
+      {/* Article Sources - at bottom, overflowing the content column */}
       {citedArticles.length > 0 && (
-        <div className="mb-6">
+        <div className="mt-6">
           <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
             {isGerman ? 'Quellen' : 'Sources'}
           </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-            {citedArticles.map(({ article, displayNumber, originalIndex }) => (
-              <CitationSourceCard
-                key={originalIndex}
-                citation={{
-                  text: '',
-                  citationNumber: displayNumber, // NEW sequential number (1, 2, 3...)
-                  source: article.title,
-                  url: article.url,
-                  imageUrl: article.image_url,
-                  faviconUrl: article.favicon_url,
-                  age: article.age,
-                  summary: article.summary,
-                }}
-                language={language}
-              />
-            ))}
+          {/* Negative margins to overflow content column, with scroll padding */}
+          <div className="-mx-8 px-8">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin snap-x snap-mandatory">
+              {citedArticles.map(({ article, displayNumber, originalIndex }) => (
+                <CitationSourceCard
+                  key={originalIndex}
+                  citation={{
+                    text: '',
+                    citationNumber: displayNumber, // NEW sequential number (1, 2, 3...)
+                    source: article.title,
+                    url: article.url,
+                    imageUrl: article.image_url,
+                    faviconUrl: article.favicon_url,
+                    age: article.age,
+                    summary: article.summary,
+                  }}
+                  language={language}
+                  className="snap-start"
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
-
-      {/* Main AI Response - pass pre-computed content (already has [N](url) links) */}
-      <Response>{content}</Response>
     </>
   );
 }
