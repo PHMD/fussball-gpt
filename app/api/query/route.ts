@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
   if (shouldFetchSource('news', classification) && process.env.BRAVE_SEARCH_API_KEY) {
     try {
       console.log('🔍 Fetching from Brave Search (primary source)...');
-      newsArticles = await fetchKickerArticlesBrave(userQuery, 10);
+      newsArticles = await fetchKickerArticlesBrave(userQuery, 5);
       console.log(`✓ Brave Search: ${newsArticles.length} articles`);
     } catch (error) {
       console.error('⚠️ Brave Search failed:', error);

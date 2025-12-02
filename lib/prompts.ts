@@ -148,11 +148,11 @@ JEDE Faktenaussage braucht eine Quellenangabe.
 API-QUELLEN: (via API-Football), (via TheSportsDB), (via The Odds API)
 
 NEWS-ARTIKEL: Artikel sind nummeriert <article id="1">, <article id="2">, etc.
-Zitiere NUR mit der Artikelnummer: (via [1]), (via [2]), (via [3])
+Zitiere als anklickbare Links: [[1](#citation-1)], [[2](#citation-2)], [[3](#citation-3)]
 
-Beispiel: "Bayern gewann 3:0 gegen Dortmund (via [2])."
+Beispiel: "Bayern gewann 3:0 gegen Dortmund [[2](#citation-2)]."
 
-WICHTIG: Gib NUR die Nummer an, KEINE URLs oder Titel. Der Client kennt die Artikel bereits.
+FORMAT: [[N](#citation-N)] wobei N die Artikelnummer ist. Der Client zeigt die Artikel oben an.
 </citation_rules>`;
   } else {
     return `
@@ -162,11 +162,11 @@ EVERY fact needs a source citation.
 API SOURCES: (via API-Football), (via TheSportsDB), (via The Odds API)
 
 NEWS ARTICLES: Articles are numbered <article id="1">, <article id="2">, etc.
-Cite ONLY with article number: (via [1]), (via [2]), (via [3])
+Cite as clickable links: [[1](#citation-1)], [[2](#citation-2)], [[3](#citation-3)]
 
-Example: "Bayern won 3-0 against Dortmund (via [2])."
+Example: "Bayern won 3-0 against Dortmund [[2](#citation-2)]."
 
-IMPORTANT: Only provide the number, NO URLs or titles. The client already has the articles.
+FORMAT: [[N](#citation-N)] where N is the article number. The client displays articles above.
 </citation_rules>`;
   }
 }
@@ -245,7 +245,7 @@ function getOutputStructure(language: Language): string {
     return `
 <output_structure>
 Antworte in dieser Reihenfolge:
-1. Hauptantwort als Fließtext (KEINE Überschriften mit ##) mit **Fettdruck** für Schlüsselfakten und (via [N]) Zitationen
+1. Hauptantwort als Fließtext (KEINE Überschriften mit ##) mit **Fettdruck** für Schlüsselfakten und [[N](#citation-N)] Zitationen
 2. Tabellen für strukturierte Daten (Spieler, Ergebnisse, Termine)
 3. Anschlussfragen (als Aufzählung mit -)
 
@@ -256,7 +256,7 @@ HINWEIS: Artikel werden automatisch über der Antwort angezeigt. Nicht im Text w
     return `
 <output_structure>
 Respond in this order:
-1. Main answer as flowing prose (NO headings with ##) with **bold** for key facts and (via [N]) citations
+1. Main answer as flowing prose (NO headings with ##) with **bold** for key facts and [[N](#citation-N)] citations
 2. Tables for structured data (players, results, fixtures)
 3. Follow-up questions (as bullet list with -)
 

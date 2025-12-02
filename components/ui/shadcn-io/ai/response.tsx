@@ -198,16 +198,51 @@ const components: Options['components'] = {
       {children}
     </span>
   ),
-  a: ({ node, children, className, ...props }) => (
-    <a
-      className={cn('font-medium text-primary underline', className)}
-      rel="noreferrer"
-      target="_blank"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
+  a: ({ node, children, className, href, ...props }) => {
+    // Check if this is a citation link (href starts with #citation-)
+    const isCitation = href?.startsWith('#citation-');
+
+    if (isCitation) {
+      return (
+        <a
+          href={href}
+          className={cn(
+            'inline-flex items-center justify-center',
+            'min-w-[1.25rem] h-5 px-1.5 mx-0.5',
+            'text-xs font-semibold',
+            'bg-primary/10 text-primary',
+            'rounded-full',
+            'hover:bg-primary/20 transition-colors',
+            'no-underline cursor-pointer',
+            className
+          )}
+          onClick={(e) => {
+            e.preventDefault();
+            const targetId = href?.replace('#', '');
+            const targetElement = document.getElementById(targetId || '');
+            if (targetElement) {
+              targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }}
+        >
+          {children}
+        </a>
+      );
+    }
+
+    // Regular link styling
+    return (
+      <a
+        className={cn('font-medium text-primary underline', className)}
+        rel="noreferrer"
+        target="_blank"
+        href={href}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
   h1: ({ node, children, className, ...props }) => (
     <h1
       className={cn('mt-6 mb-2 font-semibold text-3xl', className)}
