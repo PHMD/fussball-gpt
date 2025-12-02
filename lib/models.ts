@@ -135,9 +135,9 @@ export function toContextString(data: AggregatedData): string {
       // Include all metadata inline for LLM to extract
       lines.push(`  <article id="${index + 1}">`);
       lines.push(`    <title>${escapeXml(article.title)}</title>`);
-      lines.push(`    <url>${article.url || ''}</url>`);
-      lines.push(`    <image>${article.image_url || ''}</image>`);
-      lines.push(`    <age>${article.age || date}</age>`);
+      lines.push(`    <url>${escapeXml(article.url || '')}</url>`);
+      lines.push(`    <image>${escapeXml(article.image_url || '')}</image>`);
+      lines.push(`    <age>${escapeXml(article.age || date)}</age>`);
       lines.push(`    <content>${escapeXml(article.content.substring(0, 300))}...</content>`);
       lines.push('  </article>');
     });
@@ -152,7 +152,7 @@ export function toContextString(data: AggregatedData): string {
         : new Date(event.timestamp);
       const date = timestampDate.toISOString().split('T')[0];
 
-      lines.push(`  <event type="${event.event_type}" date="${date}"${event.score ? ` score="${event.score}"` : ''}>`);
+      lines.push(`  <event type="${escapeXml(event.event_type)}" date="${date}"${event.score ? ` score="${escapeXml(event.score)}"` : ''}>`);
       lines.push(`    <title>${escapeXml(event.title)}</title>`);
       lines.push(`    <details>${escapeXml(event.content)}</details>`);
       lines.push('  </event>');

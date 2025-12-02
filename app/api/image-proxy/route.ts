@@ -60,8 +60,12 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Invalid protocol', { status: 400 });
     }
 
-    // Fetch the image server-side
+    // Fetch the image server-side with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     const response = await fetch(imageUrl, {
+      signal: controller.signal,
       headers: {
         // Mimic browser request to avoid bot blocking
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -70,6 +74,8 @@ export async function GET(request: NextRequest) {
         'Referer': url.origin,
       },
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`Image proxy failed: ${response.status} for ${imageUrl}`);

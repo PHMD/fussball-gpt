@@ -200,8 +200,13 @@ const components: Options['components'] = {
   ),
   a: ({ node, children, className, href, ...props }) => {
     // Check if this is a citation link (link text is just a number like "1", "2", etc.)
-    const linkText = typeof children === 'string' ? children :
-      Array.isArray(children) && typeof children[0] === 'string' ? children[0] : '';
+    // Only detect citations for pure text children (single string element)
+    let linkText = '';
+    if (typeof children === 'string') {
+      linkText = children;
+    } else if (Array.isArray(children) && children.length === 1 && typeof children[0] === 'string') {
+      linkText = children[0];
+    }
     const isCitation = /^\d+$/.test(linkText.trim());
 
     if (isCitation) {

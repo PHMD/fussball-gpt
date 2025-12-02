@@ -21,7 +21,7 @@ import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
-import { AssistantMessage, SourcesCarousel } from '@/components/ui/assistant-message';
+import { AssistantMessageText, SourcesCarousel } from '@/components/ui/assistant-message';
 import type { Article } from '@/lib/utils/parse-citations';
 
 /** Part type for streamed article data in assistant messages */
@@ -205,10 +205,9 @@ export default function ChatPage() {
                       })}
                     </div>
                   ) : (
-                    <AssistantMessage
+                    <AssistantMessageText
                       text={messageText}
                       articles={messageArticles}
-                      language={profile.language}
                     />
                   )}
                 </MessageContent>

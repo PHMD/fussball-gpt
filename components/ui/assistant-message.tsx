@@ -72,10 +72,11 @@ export function SourcesCarousel({
         }}
       >
         {/* Inner flex with padding to align first card with content column */}
+        {/* max-w-2xl = 672px, half = 336px, plus px-4 (16px) = 320px offset from center */}
         <div
           className="flex gap-3 pb-2 snap-x snap-mandatory"
           style={{
-            paddingLeft: 'max(1rem, calc(50vw - 336px))',
+            paddingLeft: 'max(1rem, calc(50vw - 320px))',
             paddingRight: '1rem',
           }}
         >
@@ -102,9 +103,3 @@ export function SourcesCarousel({
   );
 }
 
-/**
- * Combined component for backwards compatibility (if needed)
- */
-export function AssistantMessage({ text, articles, language }: AssistantMessageProps) {
-  return <AssistantMessageText text={text} articles={articles} />;
-}

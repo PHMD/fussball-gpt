@@ -36,8 +36,9 @@ export function ResponseWithCitations({
   }, [children, articles]);
 
   // Notify parent of cited indices changes (for filtering articles)
+  // Always notify, even when empty, so parent can clear stale state
   useEffect(() => {
-    if (onCitedIndicesChange && citedIndices.size > 0) {
+    if (onCitedIndicesChange) {
       onCitedIndicesChange(citedIndices);
     }
   }, [citedIndices, onCitedIndicesChange]);
