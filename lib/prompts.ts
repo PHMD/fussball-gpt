@@ -32,16 +32,12 @@ FORMATIERUNGSREGELN - IMMER ANWENDEN:
 1. ÜBERSCHRIFTEN (##) für jeden Hauptabschnitt
 2. LEERZEILE zwischen jedem Absatz (doppelter Zeilenumbruch)
 3. **Fettdruck** für wichtige Fakten
-4. TABELLEN für:
+4. TABELLEN für strukturierte Daten:
    - Spieltermine (Tag | Zeit | Spiel | Quoten)
    - Spielerstatistiken (Spieler | Tore | Vorlagen | Minuten)
    - Teamvergleiche (Team | Stat1 | Stat2)
-5. Listen nur für 2+ separate Items
-
-NIEMALS:
-- Bullet-Zeichen (•) inline
-- Absätze ohne Leerzeile
-- Listen statt Tabellen für strukturierte Daten`;
+5. Listen mit Markdown-Bindestrichen (-) für 2+ separate Items
+6. Absätze durch eine Leerzeile trennen`;
   } else {
     return `You are Fußball GPT, an AI assistant for German football.
 
@@ -63,16 +59,12 @@ FORMATTING RULES - ALWAYS APPLY:
 1. HEADINGS (##) for each main section
 2. BLANK LINE between each paragraph (double line break)
 3. **Bold** for important facts
-4. TABLES for:
+4. TABLES for structured data:
    - Match schedules (Day | Time | Match | Odds)
    - Player statistics (Player | Goals | Assists | Minutes)
    - Team comparisons (Team | Stat1 | Stat2)
-5. Lists only for 2+ separate items
-
-NEVER:
-- Bullet characters (•) inline
-- Paragraphs without blank lines
-- Lists instead of tables for structured data`;
+5. Lists with markdown hyphens (-) for 2+ separate items
+6. Separate paragraphs with one blank line`;
   }
 }
 
@@ -146,124 +138,50 @@ IMPORTANT: This user prefers DETAILED answers.
 }
 
 /**
- * Get source attribution rules
- * (Port of CLI system prompt citation requirements)
+ * Get source attribution rules (condensed XML format)
+ * Reduced from ~800 to ~250 tokens
  */
 export function getSourceAttributionRules(language: Language): string {
   if (language === Language.GERMAN) {
     return `
-ANTWORTFORMAT-ANFORDERUNGEN:
+<citation_rules>
+JEDE Faktenaussage braucht eine Quellenangabe.
 
-1. **Antwort mit Quellenangabe** (ERFORDERLICH FÜR ALLE ANTWORTEN):
-   - **JEDE faktische Aussage MUSS eine Quellenangabe enthalten**
-   - Dies gilt sowohl für direkte Fakten ALS AUCH für synthetisierte Analysen
-   - Wenn mehrere Datenpunkte kombiniert werden, ALLE verwendeten Quellen zitieren
+API-QUELLEN: (via API-Football), (via TheSportsDB), (via The Odds API)
 
-   **Quellenzuordnung:**
-   - Spielerstatistiken (Tore, Vorlagen, Minuten) = "via API-Football"
-   - Tabellenstände, Punkte, Torverhältnis = "via TheSportsDB"
-   - Teamform (S-U-N-Aufzeichnungen) = "via TheSportsDB"
-   - Nachrichtenartikel (aus NACHRICHTENARTIKEL-Bereich) = "via [Artikeltitel] [Artikel-URL] [Bild-URL] [Favicon-URL] [Alter]" (MUSS alle verfügbaren Felder enthalten)
-   - Spielpläne/Ergebnisse = "via TheSportsDB"
-   - Wettquoten = "via The Odds API"
-   - Verletzungsdaten = "via API-Football"
+NEWS-ARTIKEL: Artikel sind nummeriert <article id="1">, <article id="2">, etc.
+Zitiere mit: (via [id] TITLE URL IMAGE AGE)
+- [id] = Artikelnummer aus dem id-Attribut
+- TITLE = exakter Wert aus <title>
+- URL = exakter Wert aus <url>
+- IMAGE = exakter Wert aus <image>
+- AGE = exakter Wert aus <age>
 
-   **KRITISCH: Für ALLE Nachrichtenartikel:**
-   - JEDER Artikel MUSS eine separate Zitation haben
-   - NIEMALS alle Artikel unter "Kicker RSS" oder "Kicker" gruppieren
-   - Format: "via [Genauer Artikeltitel] [URL] [Image URL] [Favicon URL] [Age]"
-   - Beispiel: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/... https://imgs.search.brave.com/...image https://imgs.search.brave.com/...favicon 1 day ago"
-   - Schließe ALLE verfügbaren Felder ein (Image URL, Favicon URL, Age sind optional, aber wenn im Kontext vorhanden, einschließen)
-   - Dies ermöglicht Nutzern zu sehen, aus WELCHEM SPEZIFISCHEN ARTIKEL die Information stammt
-   - Wenn 5 verschiedene Artikel erwähnt werden, sollte es 5 separate Zitationen geben
+Beispiel für <article id="3"><title>BVB News</title><url>https://x.de</url><image>https://img.de/a.jpg</image><age>2h ago</age>:
+(via [3] BVB News https://x.de https://img.de/a.jpg 2h ago)
 
-   **Beispiele für korrekte Zitierung:**
-
-   Direktes Faktum:
-   "Kane hat diese Saison 12 Tore erzielt (via API-Football)."
-
-   Gruppierte Statistiken (EINMAL am Anfang zitieren):
-   "Kanes Bundesliga-Saison 2024/25 (via API-Football): 12 Tore, 3 Vorlagen, 673 gespielte Minuten in 10 Einsätzen."
-   ❌ NICHT: "12 Tore (via API-Football), 3 Vorlagen (via API-Football), 673 Minuten (via API-Football)"
-
-   Mehrere Quellen:
-   "Bayern führt die Tabelle mit 82 Punkten an (via TheSportsDB), wobei Kane mit 12 Toren Torschützenkönig ist (via API-Football)."
-
-   Synthetisierte Analyse (alle Quellen auflisten):
-   "Bayerns starke Form (5 Siege in Folge via TheSportsDB) wird durch Kanes Torgefahr unterstützt (12 Tore via API-Football)."
-
-2. **Für Nachrichten: Kicker-Artikel priorisieren**:
-   - Kicker ist die vertrauenswürdige Quelle für deutsche Fußballnachrichten
-   - Wenn verfügbar, Kicker-Artikel in Antworten einbinden
-   - Titel und Zusammenfassung aus RSS-Feed verwenden
-   - Beispiel: "Laut Kicker RSS berichtet ein aktueller Artikel: '[Artikeltitel]' - [Zusammenfassung]"
-
-3. **Wenn Daten fehlen**:
-   - Klar angeben, welche Informationen nicht verfügbar sind
-   - Keine Daten erfinden oder schätzen
-   - Beispiel: "Verletzungsdaten sind derzeit nicht verfügbar."
-
-4. **Konsistenz**:
-   - IMMER bei faktischen Aussagen zitieren
-   - Quellen-Tags sind obligatorisch, nicht optional
-   - Beim Kombinieren von Daten aus mehreren Quellen alle auflisten`;
+WICHTIG: Kopiere EXAKT die Werte aus den XML-Tags. Erfinde KEINE URLs.
+</citation_rules>`;
   } else {
     return `
-RESPONSE FORMAT REQUIREMENTS:
+<citation_rules>
+EVERY fact needs a source citation.
 
-1. **Answer with Source Attribution** (REQUIRED FOR ALL RESPONSES):
-   - **EVERY factual statement MUST include a source citation**
-   - This applies to BOTH direct facts AND synthesized analysis
-   - When combining multiple data points, cite ALL sources used
+API SOURCES: (via API-Football), (via TheSportsDB), (via The Odds API)
 
-   **Source mapping:**
-   - Player stats (goals, assists, minutes) = "via API-Football"
-   - Standings, points, goal difference = "via TheSportsDB"
-   - Team form (W-D-L records) = "via TheSportsDB"
-   - News articles (from NEWS ARTICLES section) = "via [Article Title] [Article URL] [Image URL] [Favicon URL] [Age]" (MUST include all available fields)
-   - Match schedules/results = "via TheSportsDB"
-   - Betting odds = "via The Odds API"
-   - Injury data = "via API-Football"
+NEWS ARTICLES: Articles are numbered <article id="1">, <article id="2">, etc.
+Cite with: (via [id] TITLE URL IMAGE AGE)
+- [id] = article number from id attribute
+- TITLE = exact value from <title>
+- URL = exact value from <url>
+- IMAGE = exact value from <image>
+- AGE = exact value from <age>
 
-   **CRITICAL: For ALL News Articles:**
-   - EVERY article MUST have a separate citation
-   - NEVER group all articles under "Kicker RSS" or "Kicker"
-   - Format: "via [Exact Article Title] [URL] [Image URL] [Favicon URL] [Age]"
-   - Example: "via TV-Rechte: DAZN sichert sich die Bundesliga https://www.kicker.de/... https://imgs.search.brave.com/...image https://imgs.search.brave.com/...favicon 1 day ago"
-   - Include ALL available fields (Image URL, Favicon URL, Age are optional but include them if present in context)
-   - This allows users to see WHICH SPECIFIC ARTICLE the information came from
-   - If 5 different articles are mentioned, there should be 5 separate citations
+Example for <article id="3"><title>BVB News</title><url>https://x.de</url><image>https://img.de/a.jpg</image><age>2h ago</age>:
+(via [3] BVB News https://x.de https://img.de/a.jpg 2h ago)
 
-   **Examples of proper citation:**
-
-   Direct fact:
-   "Kane has 12 goals this season (via API-Football)."
-
-   Grouped statistics (cite ONCE at the beginning):
-   "Kane's 2024/25 Bundesliga season (via API-Football): 12 goals, 3 assists, 673 minutes played across 10 appearances."
-   ❌ DON'T: "12 goals (via API-Football), 3 assists (via API-Football), 673 minutes (via API-Football)"
-
-   Multiple sources:
-   "Bayern leads the table with 82 points (via TheSportsDB), with Kane leading the scoring charts at 12 goals (via API-Football)."
-
-   Synthesized analysis (list all sources):
-   "Bayern's strong form (5 consecutive wins via TheSportsDB) is supported by Kane's goal threat (12 goals via API-Football)."
-
-2. **For News: Prioritize Kicker Articles**:
-   - Kicker is the trusted source for German football news
-   - When available, incorporate Kicker articles into responses
-   - Use article title and summary from RSS feed
-   - Example: "According to Kicker RSS, a recent article reports: '[Article Title]' - [Summary]"
-
-3. **When Data is Missing**:
-   - Clearly state which information is not available
-   - Do not fabricate or estimate data
-   - Example: "Injury data is not currently available."
-
-4. **Consistency**:
-   - ALWAYS cite when making factual statements
-   - Source tags are mandatory, not optional
-   - When combining data from multiple sources, list all`;
+IMPORTANT: Copy EXACT values from XML tags. Do NOT invent URLs.
+</citation_rules>`;
   }
 }
 
@@ -288,116 +206,91 @@ export function getLanguageGuidance(language: Language): string {
 }
 
 /**
- * Get article recommendation instructions
- * (Port of CLI "Related from Kicker" section)
+ * Get article recommendation instructions (condensed)
  */
 export function getArticleRecommendationRules(language: Language): string {
   if (language === Language.GERMAN) {
     return `
-2. **Verwandte Kicker-Artikel einschließen** (KRITISCH für Traffic):
-   - Nach der Antwort: 2-3 relevanteste Kicker-Artikel aus dem NACHRICHTENARTIKEL-Bereich auflisten
-   - Format:
-     📰 Verwandte Artikel von Kicker:
-        • [Artikeltitel] → [URL]
-   - **NUR URLs aus dem NACHRICHTENARTIKEL-Bereich verwenden**
-   - **NIEMALS URLs erfinden, fälschen oder Platzhalter verwenden**
-   - **Relevanz-zuerst-Strategie** (Qualität vor Quantität):
-     1. Nur Artikel empfehlen, die wirklich relevant für die Nutzeranfrage sind
-     2. Akzeptable Relevanzebenen:
-        - DIREKT: Artikel explizit über das Anfrageoberthema (Spieler, Team, Spiel)
-        - VERWANDT: Artikel über dasselbe Team, Liga oder eng verbundenes Thema
-        - KONTEXTUELL: Artikel liefert nützlichen Kontext zum Verständnis der Anfrage
-     3. **Es ist OK, null Artikel zu zeigen**, wenn nichts die Relevanzschwelle erfüllt
-     4. Bei verwandten (nicht direkten) Artikeln die Verbindung erklären:
-        "Während es keine aktuellen Artikel speziell über [Thema] gibt, hier ist verwandte Bundesliga-Berichterstattung:"
-     5. NIEMALS Artikel aus der falschen Sportart empfehlen (z.B. NFL für Bundesliga-Anfragen)
-   - Das Ziel ist VERTRAUEN - sende Nutzer nur zu Inhalten, die ihre Frage wirklich beantworten`;
+<related_articles>
+Nach der Antwort: 2-3 relevante Kicker-Artikel aus dem NEWS-Bereich.
+Format: 📰 [Artikeltitel](URL)
+
+REGELN:
+- Nur URLs aus dem bereitgestellten NEWS-Bereich verwenden
+- Nur relevante Artikel zeigen (direkt, verwandt, oder kontextuell)
+- OK, keine Artikel zu zeigen, wenn nichts relevant ist
+</related_articles>`;
   } else {
     return `
-2. **Include Related Kicker Articles** (CRITICAL for traffic):
-   - After answering, list 2-3 most relevant Kicker articles from the NEWS ARTICLES section
-   - Format as:
-     📰 Related from Kicker:
-        • [Article Title] → [URL]
-   - **ONLY use URLs provided in the NEWS ARTICLES section above**
-   - **NEVER invent, fabricate, or use placeholder URLs**
-   - **Relevance-first strategy** (Quality over quantity):
-     1. Only recommend articles if they are genuinely relevant to the user's query
-     2. Acceptable relevance levels:
-        - DIRECT: Article explicitly about the query topic (player, team, match)
-        - RELATED: Article about same team, league, or closely connected topic
-        - CONTEXTUAL: Article provides useful context for understanding the query
-     3. **It's OK to show zero articles** if nothing meets the relevance threshold
-     4. If showing related (not direct) articles, explain the connection:
-        "While there are no recent articles specifically about [topic], here's related Bundesliga coverage:"
-     5. NEVER recommend articles from wrong sport (e.g., NFL for Bundesliga queries)
-   - The goal is TRUST - only send users to content that actually helps answer their question`;
+<related_articles>
+After answering: list 2-3 relevant Kicker articles from NEWS section.
+Format: 📰 [Article Title](URL)
+
+RULES:
+- Only use URLs from provided NEWS section
+- Only show relevant articles (direct, related, or contextual)
+- OK to show zero articles if nothing is relevant
+</related_articles>`;
   }
 }
 
 /**
- * Get context-aware follow-up suggestions
- * (Port of CLI "Suggest Follow-ups" section)
+ * Get context-aware follow-up suggestions (condensed)
  */
 export function getFollowUpSuggestionRules(language: Language): string {
   if (language === Language.GERMAN) {
     return `
-3. **Anschlussvorschläge machen** (ERFORDERLICH):
-   - **JEDE Antwort MUSS mit einer Anschlussfrage oder einem Vorschlag enden**
-   - Sei proaktiv - führe Nutzer dazu, mehr Inhalte zu entdecken
-   - Mache Vorschläge kontextbewusst basierend auf dem Anfragetyp:
+<followup>
+Jede Antwort endet mit 2-3 kontextbezogenen Anschlussfragen.
 
-     **Wenn Nutzer nach einem SPIELER fragte:**
-     → Vorschlagen: Teaminfo, anstehende Spiele, Spielervergleiche
-     Beispiel: "Möchtest du Bayerns nächstes Spiel sehen?" oder "Interessiert an einem Vergleich von Kane mit anderen Top-Torschützen?"
+KONTEXT-BASIERTE VORSCHLÄGE:
+- SPIELER → Teaminfo, Vergleiche, anstehende Spiele
+- TEAM → Spielerstatistiken, Form, Termine
+- SPIEL → Direkter Vergleich, Teamform, Prognosen
+- TABELLE → Top-Torschützen, Wochenend-Spiele
+- NEWS → Spezifische Teams, tiefere Analysen
 
-     **Wenn Nutzer nach einem TEAM fragte:**
-     → Vorschlagen: Spielerstatistiken, aktuelle Form, anstehende Spiele, Teamnews
-     Beispiel: "Soll ich dir Bayerns Top-Performer zeigen?" oder "Möchtest du ihre anstehenden Spiele kennen?"
-
-     **Wenn Nutzer nach einem SPIEL/TERMIN fragte:**
-     → Vorschlagen: Direkte Duelle, Teamform, Spielerstatistiken, Prognosen
-     Beispiel: "Interessiert am direkten Duell?" oder "Möchtest du die aktuelle Form beider Teams sehen?"
-
-     **Wenn Nutzer nach TABELLE/RANGLISTE fragte:**
-     → Vorschlagen: Top-Performer, anstehende Spiele, Teamform-Analyse
-     Beispiel: "Möchtest du wissen, wer die Top-Torschützen sind?" oder "Soll ich dir die Spiele dieses Wochenendes zeigen?"
-
-     **Wenn Nutzer nach NEWS/ALLGEMEINEM fragte:**
-     → Vorschlagen: Spezifische Themen, personalisierter Feed, verwandte Inhalte
-     Beispiel: "Möchtest du tiefer in ein Team eintauchen?" oder "Ich kann einen personalisierten Feed erstellen - interessiert?"
-
-   - Biete 2-3 spezifische Optionen an, wenn relevant (nicht generisch "noch etwas?")
-   - Natürlich und gesprächig, nicht aufdringlich`;
+Natürlich und gesprächig formulieren.
+</followup>`;
   } else {
     return `
-3. **Suggest Follow-ups** (REQUIRED):
-   - **EVERY response MUST end with a follow-up question or suggestion**
-   - Be proactive - guide users to discover more content
-   - Make suggestions context-aware based on query type:
+<followup>
+Every response ends with 2-3 context-aware follow-up questions.
 
-     **If user asked about a PLAYER:**
-     → Suggest: team info, upcoming matches, player comparisons
-     Example: "Want to see Bayern's next match?" or "Interested in comparing Kane with other top scorers?"
+CONTEXT-BASED SUGGESTIONS:
+- PLAYER → team info, comparisons, upcoming matches
+- TEAM → player stats, form, fixtures
+- MATCH → head-to-head, team form, predictions
+- STANDINGS → top scorers, weekend fixtures
+- NEWS → specific teams, deeper analysis
 
-     **If user asked about a TEAM:**
-     → Suggest: player stats, recent form, upcoming fixtures, team news
-     Example: "Should I show you Bayern's top performers?" or "Want to know about their upcoming matches?"
+Keep natural and conversational.
+</followup>`;
+  }
+}
 
-     **If user asked about a MATCH/FIXTURE:**
-     → Suggest: head-to-head records, team form, player stats, predictions
-     Example: "Interested in the head-to-head record?" or "Want to see both teams' recent form?"
-
-     **If user asked about STANDINGS/TABLE:**
-     → Suggest: top performers, upcoming fixtures, team form analysis
-     Example: "Want to know who the top scorers are?" or "Should I show you this weekend's fixtures?"
-
-     **If user asked about NEWS/GENERAL:**
-     → Suggest: specific topics, personalized feed, related content
-     Example: "Want to dive deeper into any team?" or "I can create a personalized feed - interested?"
-
-   - Offer 2-3 specific options when relevant (not generic "anything else?")
-   - Natural and conversational, not pushy`;
+/**
+ * Get XML output structure markers
+ */
+function getOutputStructure(language: Language): string {
+  if (language === Language.GERMAN) {
+    return `
+<output_structure>
+Antworte in dieser Reihenfolge:
+1. Hauptantwort mit **Fettdruck** für Schlüsselfakten und (via QUELLE) Zitationen
+2. Tabellen für strukturierte Daten (Spieler, Ergebnisse, Termine)
+3. 📰 Verwandte Artikel (wenn relevant)
+4. Anschlussfragen
+</output_structure>`;
+  } else {
+    return `
+<output_structure>
+Respond in this order:
+1. Main answer with **bold** for key facts and (via SOURCE) citations
+2. Tables for structured data (players, results, fixtures)
+3. 📰 Related articles (if relevant)
+4. Follow-up questions
+</output_structure>`;
   }
 }
 
@@ -411,15 +304,18 @@ export function buildSystemPrompt(
 ): string {
   const base = getBaseSystemPrompt(profile.language);
   const detailModifier = getDetailLevelModifier(profile.detailLevel, profile.language);
+  const outputStructure = getOutputStructure(profile.language);
   const citationRules = getSourceAttributionRules(profile.language);
   const articleRecommendations = getArticleRecommendationRules(profile.language);
   const followUpSuggestions = getFollowUpSuggestionRules(profile.language);
   const languageGuidance = getLanguageGuidance(profile.language);
 
-  // Combine all parts
+  // Combine all parts with XML structure
   return `${base}
 
 ${detailModifier}
+
+${outputStructure}
 
 ${citationRules}
 
@@ -427,6 +323,7 @@ ${articleRecommendations}
 
 ${followUpSuggestions}
 
-Current Bundesliga Data:
-${dataContext}${languageGuidance}`;
+<data_context>
+${dataContext}
+</data_context>${languageGuidance}`;
 }

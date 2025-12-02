@@ -46,18 +46,25 @@ export default function ChatPage() {
     body: { userProfile: profile },
   });
 
-  // Extract articles from the last assistant message for carousel display
+  // Extract articles from the last assistant message's parts for carousel display
+  // Articles are streamed as 'data-articles' type in message.parts
   const articles = useMemo(() => {
     const lastMessage = messages[messages.length - 1];
-    if (!lastMessage?.data?.articles) return [];
-    return lastMessage.data.articles as Array<{
-      title: string;
-      url?: string;
-      image_url?: string;
-      favicon_url?: string;
-      age?: string;
-      summary?: string;
-    }>;
+    if (!lastMessage?.parts) return [];
+
+    // Find the data-articles part in message.parts
+    const articlesPart = lastMessage.parts.find(
+      (part): part is { type: 'data-articles'; data: { articles: Array<{
+        title: string;
+        url?: string;
+        image_url?: string;
+        favicon_url?: string;
+        age?: string;
+        summary?: string;
+      }> } } => part.type === 'data-articles'
+    );
+
+    return articlesPart?.data?.articles || [];
   }, [messages]);
 
   const handleSubmit = () => {

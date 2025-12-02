@@ -1,16 +1,18 @@
-# CLAUDE.md - Main Worktree (Orchestrator)
+# CLAUDE.md - Feature Worktree (Dev Mode)
 
-**Role**: Merge manager and deployment coordinator
+**Role**: Implementation and development
+**Branch**: `feature/phm-prompt-optimization`
+**Linear Issue**: PHM-216
 
 ## Project Management
 
-**Issue Tracking**: Linear (primary) + GitHub Issues (optional for git linking)
+**Issue Tracking**: Linear (required for feature work)
 - Always include Linear ID (PHM-XX) in commits
-- Optionally include GitHub issue (#XX) for git commit linking
+- Update Linear issue status as work progresses
 
 **Commit Format:**
 ```bash
-git commit -m "type: description - PHM-XX
+git commit -m "type: description - PHM-216
 
 - Bullet points
 - What changed
@@ -21,192 +23,193 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 
 ## Communication Style
 
-Be direct and factual. No validation phrases like "You're absolutely right" or "Great question!" - just answer with technical diagnosis and optimization.
+Be direct and factual. No validation phrases - just answer with technical diagnosis and optimization.
 
-## 🚨 PRODUCTION DEPLOYMENT SAFEGUARD
+## Research Tools (Ref & Exa)
 
-**CRITICAL RULE: Never merge to `main` or deploy to production without explicit approval**
+**IMPORTANT**: Always use these tools before implementing unfamiliar patterns or APIs.
 
-Before ANY operation that affects the `main` branch, you MUST:
+### Ref MCP - Documentation Search
 
-1. **Ask for explicit confirmation** with this exact template:
+**What it does**: Searches official documentation for libraries, frameworks, and APIs.
 
+**When to use:**
+- Looking up API syntax or function signatures
+- Finding official best practices
+- Checking library version compatibility
+- Understanding configuration options
+
+**Tools:**
 ```
-⚠️ PRODUCTION DEPLOYMENT CONFIRMATION REQUIRED
-
-I am about to execute:
-- [specific git command or action]
-- [what this affects - e.g., "merge staging → main"]
-- [deployment impact - e.g., "push to production"]
-
-This action is IRREVERSIBLE and affects production.
-
-Please respond with one of:
-✅ "Yes, deploy to production" - to proceed
-❌ "No" or anything else - to cancel
+mcp__Ref__ref_search_documentation  - Search for docs
+mcp__Ref__ref_read_url              - Read specific doc URL
 ```
 
-2. **Wait for explicit approval phrase:**
-   - "Deploy to production"
-   - "Merge to main"
-   - "Yes, deploy to production"
-   - "You are approved to deploy"
+**Examples:**
+```
+# Search for Claude prompt engineering docs
+ref_search_documentation("Anthropic Claude system prompt best practices")
 
-3. **NEVER act on ambiguous phrases:**
-   - ❌ "How does it work?" (question, not command)
-   - ❌ "Looks good" (too vague)
-   - ❌ "Is this ready?" (question)
-   - ❌ "What's the workflow?" (asking for info)
+# Read a specific documentation page
+ref_read_url("https://docs.anthropic.com/en/docs/...")
+```
 
-**If in doubt, ASK. Never assume permission to deploy.**
+**Why we use it:**
+- 50% token savings vs Context7
+- Returns official, authoritative sources
+- Better for API reference and configuration
 
-## MCP Stack (Orchestrator Mode)
+---
+
+### Exa MCP - Code Examples & Web Search
+
+**What it does**: Searches GitHub repos and the web for real-world code examples.
+
+**When to use:**
+- Finding implementation examples
+- Seeing how others solved similar problems
+- Discovering patterns and approaches
+- Getting context for unfamiliar codebases
+
+**Tools:**
+```
+mcp__exa__get_code_context_exa  - Search code examples (PRIMARY)
+mcp__exa__web_search_exa        - General web search
+```
+
+**Examples:**
+```
+# Find code examples for prompt engineering
+get_code_context_exa("TypeScript XML structured prompt template LLM")
+
+# Search for specific implementations
+get_code_context_exa("Vercel AI SDK system prompt streaming")
+```
+
+**Why we use it:**
+- Real code from real projects
+- Shows practical implementations, not just theory
+- Great for discovering patterns you didn't know existed
+
+---
+
+### Research Workflow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   BEFORE IMPLEMENTING                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. Check Ref for official docs                              │
+│     └─ "What does the API say?"                              │
+│                                                              │
+│  2. Check Exa for code examples                              │
+│     └─ "How do others implement this?"                       │
+│                                                              │
+│  3. Combine learnings                                        │
+│     └─ Official best practice + real-world pattern           │
+│                                                              │
+│  4. Implement with confidence                                │
+│     └─ Cite sources in code comments if helpful              │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Example for this task:**
+```
+# Before optimizing prompts:
+1. ref_search_documentation("Anthropic Claude 4 prompt engineering")
+2. get_code_context_exa("XML structured prompt template LLM system")
+3. Apply learnings to lib/prompts.ts
+```
+
+## MCP Stack (Dev Mode)
 
 **Current MCPs:**
-- GitHub (PR management, code review)
-- Vercel (deployment monitoring)
-- Semgrep (final security scan before merge)
-- Linear (issue tracking)
+- **Ref** - Documentation search (official docs)
+- **Exa** - Code examples from GitHub
+- **GitHub** - Commit and push
+- **Semgrep** - Security scanning
+- **Linear** - Issue tracking
+- **browser-use** - Quick browser testing
 
 **Not included** (keep context lean):
-- Ref, Exasearch (dev work only)
-- Playwright, browser-use (QA work only)
-- Perplexity (research only)
+- Vercel (deployment is orchestrator's job)
+- Playwright (use for QA phase only)
 
-## Core Responsibilities
+## Development Workflow
 
-### 1. Pull Request Review
-
-When reviewing a PR from a feature branch:
+### 1. Start Work
 
 ```bash
-# Check out feature branch
-git fetch origin
-git checkout feature-phm-XX
+# Ensure you're on the right branch
+git status
 
-# Review changes
-git log main..HEAD
-git diff main..HEAD
+# Read the Linear issue for full context
+# PHM-216 has detailed implementation tasks
+```
 
+### 2. Research Phase
+
+```bash
+# Use Ref for official docs
+ref_search_documentation("your topic")
+
+# Use Exa for code examples
+get_code_context_exa("your implementation pattern")
+```
+
+### 3. Implementation
+
+- Make changes incrementally
+- Run `npm run build` frequently
+- Test with `npm test`
+
+### 4. Commit & Push
+
+```bash
+git add .
+git commit -m "feat: description - PHM-216"
+git push origin feature/phm-prompt-optimization
+```
+
+### 5. Ready for Review
+
+```bash
 # Run security scan
 semgrep scan --config auto .
 
-# Check tests pass
-npm test
-
-# Review Linear issue for context
-linear issue PHM-XX
-```
-
-**Review checklist:**
-- [ ] Linear issue linked in PR description
-- [ ] Commits follow format convention
-- [ ] No security issues (Semgrep clean)
-- [ ] Tests pass
-- [ ] No CLAUDE.md or .claude/ changes (should be git-ignored)
-- [ ] Changelog updated (if applicable)
-
-### 2. Merge Strategy
-
-**Standard merge (most features):**
-```bash
-git checkout main
-git merge --no-ff feature-phm-XX
-git push origin main
-```
-
-**Fast-forward merge (hotfixes, trivial changes):**
-```bash
-git checkout main
-git merge --ff-only feature-phm-XX
-git push origin main
-```
-
-**Squash merge (experimental features, cleanup history):**
-```bash
-git checkout main
-git merge --squash feature-phm-XX
-git commit -m "feat: Feature X - PHM-XX"
-git push origin main
-```
-
-### 3. Deployment Verification
-
-After merge to main:
-
-```bash
-# Check Vercel deployment status
-vercel list
-vercel inspect <deployment-url>
-
-# Monitor for errors
-vercel logs <deployment-url>
-```
-
-### 4. Worktree Cleanup
-
-After successful merge and deployment:
-
-```bash
-# List worktrees
-git worktree list
-
-# Remove merged worktree
-git worktree remove ../feature-phm-XX
-
-# Delete remote branch (optional)
-git push origin --delete feature-phm-XX
+# Create PR (or notify orchestrator)
+gh pr create --base main --head feature/phm-prompt-optimization
 ```
 
 ## What NOT to Do
 
 **Never:**
-1. Implement features directly in main (create worktree instead)
-2. Merge without reviewing Linear issue context
-3. Skip security scan before merge
-4. Force push to main (protected branch)
-5. Merge with failing tests
+1. Merge directly to main (orchestrator's job)
+2. Skip security scans
+3. Implement without checking docs first
+4. Ignore Linear issue requirements
 
 **Always:**
-1. Review diffs before merging
-2. Verify deployment succeeded
-3. Update Linear issue status after merge
-4. Clean up worktrees after merge
+1. Use Ref/Exa for research
+2. Update Linear issue with progress
+3. Run build and tests before committing
+4. Keep commits atomic and well-described
 
-## Available Skills
+## Escalation
 
-- `worktree-setup` - Create new worktrees (but rarely needed from main)
-- `linear-handoff` - Update Linear issues with merge status
+**If blocked:**
+1. Add comment to Linear issue
+2. Ask user for clarification
+3. Consider if task scope has changed
 
-## Agents
-
-**Not available in main** - This is orchestration only. Delegate to feature worktrees for implementation.
-
-## Workflow Example
-
-```
-1. User: "Review and merge PHM-61"
-
-2. Orchestrator:
-   - Checks out feature-phm-61 branch
-   - Reviews Linear issue context
-   - Reviews code diff
-   - Runs Semgrep scan
-   - Runs tests
-   - Merges to main
-   - Verifies Vercel deployment
-   - Updates Linear issue
-   - Cleans up worktree
-
-3. Reports: "PHM-61 merged and deployed to production"
-```
+**If task grows:**
+1. Update Linear issue description
+2. Break into sub-issues if needed
+3. Communicate scope change to user
 
 ## Token Budget
 
-**Target**: ~5K tokens for this CLAUDE.md
-**Why**: Keep orchestrator lean - no dev stack overhead
-
-## Related Templates
-
-- `claude-staging.md` - For quick iterations and UI tweaks
-- `claude-feature.md` - For tracked feature development with full CI/CD
+**Target**: ~6K tokens for this CLAUDE.md
+**Why**: Include research tools documentation for effective development

@@ -99,8 +99,19 @@ export const AggregatedDataSchema = z.object({
 export type AggregatedData = z.infer<typeof AggregatedDataSchema>;
 
 /**
- * Convert aggregated data to LLM context string
- * (Port of Python's AggregatedData.to_context_string() method)
+ * Escape XML special characters
+ */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Convert aggregated data to LLM context string (XML format)
+ * Uses XML structure with source attributes for better citation
  */
 export function toContextString(data: AggregatedData): string {
   // Handle timestamps as either Date objects or strings (from JSON serialization)
@@ -109,87 +120,76 @@ export function toContextString(data: AggregatedData): string {
     : new Date(data.aggregation_timestamp);
 
   const lines: string[] = [
-    `Data aggregated at: ${aggregationDate.toISOString()}\n`
+    `<timestamp>${aggregationDate.toISOString()}</timestamp>`
   ];
 
   if (data.news_articles.length > 0) {
-    lines.push('=== NEWS ARTICLES (Kicker Content) ===');
-    for (const article of data.news_articles) {
-      // Handle timestamp as either Date object or string (from JSON serialization)
+    lines.push('<news_articles>');
+    data.news_articles.forEach((article, index) => {
       const timestampDate = article.timestamp instanceof Date
         ? article.timestamp
         : new Date(article.timestamp);
-      const timestamp = timestampDate.toISOString().split('T')[0];
-      const time = timestampDate.toTimeString().substring(0, 5);
-      lines.push(`[${timestamp} ${time}] ${article.title}`);
-      lines.push(`Source: ${article.source}`);
-      if (article.url) {
-        lines.push(`URL: ${article.url}`);
-      }
-      if (article.image_url) {
-        lines.push(`Image URL: ${article.image_url}`);
-      }
-      if (article.favicon_url) {
-        lines.push(`Favicon URL: ${article.favicon_url}`);
-      }
-      if (article.age) {
-        lines.push(`Age: ${article.age}`);
-      }
-      // Truncate content for context
-      const truncatedContent = article.content.substring(0, 500);
-      lines.push(`Content: ${truncatedContent}...`);
-      lines.push('');
-    }
+      const date = timestampDate.toISOString().split('T')[0];
+
+      // Number articles for easy citation: [1], [2], etc.
+      // Include all metadata inline for LLM to extract
+      lines.push(`  <article id="${index + 1}">`);
+      lines.push(`    <title>${escapeXml(article.title)}</title>`);
+      lines.push(`    <url>${article.url || ''}</url>`);
+      lines.push(`    <image>${article.image_url || ''}</image>`);
+      lines.push(`    <age>${article.age || date}</age>`);
+      lines.push(`    <content>${escapeXml(article.content.substring(0, 300))}...</content>`);
+      lines.push('  </article>');
+    });
+    lines.push('</news_articles>');
   }
 
   if (data.sports_events.length > 0) {
-    lines.push('=== SPORTS EVENTS ===');
+    lines.push('<events source="TheSportsDB">');
     for (const event of data.sports_events) {
-      // Handle timestamp as either Date object or string (from JSON serialization)
       const timestampDate = event.timestamp instanceof Date
         ? event.timestamp
         : new Date(event.timestamp);
-      const timestamp = timestampDate.toISOString().split('T')[0];
-      const time = timestampDate.toTimeString().substring(0, 5);
-      lines.push(`[${timestamp} ${time}] ${event.title}`);
-      lines.push(`Source: ${event.source}`);
-      lines.push(`Content: ${event.content}`);
-      if (event.score) {
-        lines.push(`Score: ${event.score}`);
-      }
-      lines.push('');
+      const date = timestampDate.toISOString().split('T')[0];
+
+      lines.push(`  <event type="${event.event_type}" date="${date}"${event.score ? ` score="${event.score}"` : ''}>`);
+      lines.push(`    <title>${escapeXml(event.title)}</title>`);
+      lines.push(`    <details>${escapeXml(event.content)}</details>`);
+      lines.push('  </event>');
     }
+    lines.push('</events>');
   }
 
   if (data.player_stats.length > 0) {
-    lines.push('=== TOP PLAYER STATISTICS (Bundesliga 2024/25 - AKTUELLE SAISON) ===');
+    lines.push('<player_stats source="API-Football" season="2024/25">');
 
-    // Group by category for better readability
+    // Top scorers
     const topScorers = [...data.player_stats]
       .sort((a, b) => b.goals - a.goals)
       .slice(0, 10);
 
+    lines.push('  <top_scorers>');
+    topScorers.forEach((player, i) => {
+      lines.push(`    <player rank="${i + 1}" name="${escapeXml(player.player_name)}" team="${escapeXml(player.team)}">`);
+      lines.push(`      <goals>${player.goals}</goals><assists>${player.assists}</assists><minutes>${player.minutes_played}</minutes>`);
+      lines.push('    </player>');
+    });
+    lines.push('  </top_scorers>');
+
+    // Top assists
     const topAssists = [...data.player_stats]
       .sort((a, b) => b.assists - a.assists)
       .slice(0, 10);
 
-    lines.push('\nTop Scorers:');
-    topScorers.forEach((player, i) => {
-      lines.push(
-        `${i + 1}. ${player.player_name} (${player.team}) - ` +
-        `${player.goals} Tore, ${player.assists} Vorlagen, ${player.minutes_played} Min`
-      );
-    });
-
-    lines.push('\nTop Assists:');
+    lines.push('  <top_assists>');
     topAssists.forEach((player, i) => {
-      lines.push(
-        `${i + 1}. ${player.player_name} (${player.team}) - ` +
-        `${player.assists} Vorlagen, ${player.goals} Tore, ${player.appearances} Spiele`
-      );
+      lines.push(`    <player rank="${i + 1}" name="${escapeXml(player.player_name)}" team="${escapeXml(player.team)}">`);
+      lines.push(`      <assists>${player.assists}</assists><goals>${player.goals}</goals><appearances>${player.appearances}</appearances>`);
+      lines.push('    </player>');
     });
+    lines.push('  </top_assists>');
 
-    lines.push('');
+    lines.push('</player_stats>');
   }
 
   return lines.join('\n');

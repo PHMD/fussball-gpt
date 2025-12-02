@@ -50,6 +50,81 @@ function toSuperscript(num: number): string {
 }
 
 /**
+ * Fix broken Brave Search URLs where base64 path segments got split by whitespace.
+ * LLMs often wrap long URLs, breaking the base64-encoded parts.
+ *
+ * Example input:  "https://imgs.search.brave.com/.../aHR0cHM6Ly9 tZWRp YWRi"
+ * Example output: "https://imgs.search.brave.com/.../aHR0cHM6Ly9tZWRpYWRi"
+ */
+function fixBrokenBraveUrls(text: string): string {
+  // Pattern: Brave URL followed by space-separated base64-looking fragments
+  // Base64 chars: A-Z, a-z, 0-9, +, /, = (and _ for URL-safe variant)
+  // Continue consuming fragments until we hit something that's clearly not base64
+  // (like "ago", a number followed by time unit, or another URL)
+
+  const braveUrlStart = /https:\/\/imgs\.search\.brave\.com\/[^\s]+/g;
+  let result = text;
+  let matchResult;
+
+  // Find all Brave URLs and their positions
+  const braveUrls: { url: string; start: number; end: number }[] = [];
+  while ((matchResult = braveUrlStart.exec(text)) !== null) {
+    braveUrls.push({
+      url: matchResult[0],
+      start: matchResult.index,
+      end: matchResult.index + matchResult[0].length,
+    });
+  }
+
+  // Process in reverse order to preserve positions
+  for (let i = braveUrls.length - 1; i >= 0; i--) {
+    const braveUrl = braveUrls[i];
+    const afterUrl = text.slice(braveUrl.end);
+
+    // Check if there are base64-looking fragments after the URL
+    const fragments = afterUrl.split(/\s+/);
+    let consumedLength = 0;
+    let fragmentsToJoin: string[] = [];
+
+    for (const fragment of fragments) {
+      if (!fragment) {
+        consumedLength += 1; // Account for the space
+        continue;
+      }
+
+      // Stop if this looks like an age pattern
+      if (/^\d+$/.test(fragment) || /^(hours?|days?|weeks?|months?|ago)$/i.test(fragment)) {
+        break;
+      }
+
+      // Stop if this is another URL
+      if (fragment.startsWith('http://') || fragment.startsWith('https://')) {
+        break;
+      }
+
+      // Check if this looks like a base64 fragment (mostly alphanumeric)
+      const isBase64Like = /^[A-Za-z0-9_/+=%-]+$/.test(fragment) && fragment.length > 2;
+
+      if (isBase64Like) {
+        fragmentsToJoin.push(fragment);
+        consumedLength += fragment.length + 1; // +1 for the space before
+      } else {
+        break;
+      }
+    }
+
+    // If we found fragments to join, rebuild the URL
+    if (fragmentsToJoin.length > 0) {
+      const fixedUrl = braveUrl.url + fragmentsToJoin.join('');
+      const oldText = text.slice(braveUrl.start, braveUrl.end + consumedLength);
+      result = result.replace(oldText, fixedUrl);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Source metadata mapping
  */
 const SOURCE_METADATA: Record<string, { url?: string; description?: string }> = {
@@ -83,7 +158,10 @@ export function parseCitations(text: string): ParsedResponse {
   const citationMap = new Map<string, Citation>(); // Track unique citations by URL+source
   let citationCounter = 0;
 
-  // Regex to match citation patterns: (via Source Name) or (via Source Name URL)
+  // Regex to match citation patterns:
+  // - (via API-Football) - API sources
+  // - (via [id] Title URL IMAGE AGE) - numbered news citations
+  // - (via Title URL AGE) - legacy format
   const citationRegex = /\(via ([^)]+)\)/g;
 
   let lastIndex = 0;
@@ -92,45 +170,83 @@ export function parseCitations(text: string): ParsedResponse {
   while ((match = citationRegex.exec(text)) !== null) {
     const citationStart = match.index;
     const citationEnd = citationRegex.lastIndex;
-    const rawSource = match[1];
+
+    // Normalize whitespace: LLMs often break long URLs across lines
+    // 1. Collapse all whitespace to single spaces
+    // 2. Fix broken Brave URLs where base64 fragments got separated
+    let rawSource = match[1].replace(/\s+/g, ' ').trim();
+    rawSource = fixBrokenBraveUrls(rawSource);
 
     // Extract URL, image URL, favicon URL, and age
-    // Format: "Source Name URL [ImageURL] [FaviconURL] [Age]"
+    // Formats supported:
+    // - "[id] Title URL IMAGE AGE" (numbered format)
+    // - "Title URL ImageURL FaviconURL Age" (legacy full format)
+    // - "Title URL AGE" (simple format)
     let sourceName = rawSource;
     let sourceUrl: string | undefined;
     let imageUrl: string | undefined;
     let faviconUrl: string | undefined;
     let age: string | undefined;
 
-    // Try to match full format: "Source Name URL ImageURL FaviconURL Age"
-    const fullMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(.+)$/);
-    if (fullMatch) {
-      sourceName = fullMatch[1].trim();
-      sourceUrl = fullMatch[2];
-      imageUrl = fullMatch[3];
-      faviconUrl = fullMatch[4];
-      age = fullMatch[5].trim();
-    } else {
-      // Try format with 3 URLs: "Source Name URL ImageURL FaviconURL"
-      const threeUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
-      if (threeUrlMatch) {
-        sourceName = threeUrlMatch[1].trim();
-        sourceUrl = threeUrlMatch[2];
-        imageUrl = threeUrlMatch[3];
-        faviconUrl = threeUrlMatch[4];
+    // Extract age pattern first (always at end): "X hours/days/weeks/months ago"
+    const ageMatch = rawSource.match(/\s+(\d+\s+(?:hours?|days?|weeks?|months?)\s+ago)\s*$/i);
+    const ageValue = ageMatch ? ageMatch[1] : undefined;
+    // Remove age from rawSource for cleaner URL parsing
+    const sourceWithoutAge = ageValue ? rawSource.slice(0, rawSource.lastIndexOf(ageValue)).trim() : rawSource;
+
+    // Now extract URLs - find all https:// occurrences
+    const urlMatches = sourceWithoutAge.match(/https?:\/\/\S+/g) || [];
+
+    // Try numbered format first: "[id] Title URL IMAGE"
+    const numberedMatch = sourceWithoutAge.match(/^\[(\d+)\]\s+(.*?)\s+(https?:\/\/\S+)(?:\s+(https?:\/\/\S+))?$/);
+    if (numberedMatch) {
+      // [1] = article ID (we don't use it directly, just for reference)
+      sourceName = numberedMatch[2].trim();
+      sourceUrl = numberedMatch[3];
+      imageUrl = numberedMatch[4]; // May be undefined
+      age = ageValue;
+    }
+
+    // If no numbered match, try legacy formats
+    if (!sourceUrl) {
+      // Try to match full format: "Source Name URL ImageURL FaviconURL Age"
+      const fullMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(.+)$/);
+      if (fullMatch) {
+        sourceName = fullMatch[1].trim();
+        sourceUrl = fullMatch[2];
+        imageUrl = fullMatch[3];
+        faviconUrl = fullMatch[4];
+        age = fullMatch[5].trim();
       } else {
-        // Try format with 2 URLs: "Source Name URL ImageURL"
-        const twoUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
-        if (twoUrlMatch) {
-          sourceName = twoUrlMatch[1].trim();
-          sourceUrl = twoUrlMatch[2];
-          imageUrl = twoUrlMatch[3];
+        // Try format with 3 URLs: "Source Name URL ImageURL FaviconURL"
+        const threeUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+        if (threeUrlMatch) {
+          sourceName = threeUrlMatch[1].trim();
+          sourceUrl = threeUrlMatch[2];
+          imageUrl = threeUrlMatch[3];
+          faviconUrl = threeUrlMatch[4];
         } else {
-          // Fallback to single URL: "Source Name URL"
-          const singleUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
-          if (singleUrlMatch) {
-            sourceName = singleUrlMatch[1].trim();
-            sourceUrl = singleUrlMatch[2];
+          // Try format with 2 URLs: "Source Name URL ImageURL"
+          const twoUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(https?:\/\/\S+)$/);
+          if (twoUrlMatch) {
+            sourceName = twoUrlMatch[1].trim();
+            sourceUrl = twoUrlMatch[2];
+            imageUrl = twoUrlMatch[3];
+          } else {
+            // Try simple format: "Source Name URL Age" (1 URL + trailing age text)
+            const simpleWithAgeMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)\s+(\d+\s+(?:hours?|days?|weeks?|months?)\s+ago)$/i);
+            if (simpleWithAgeMatch) {
+              sourceName = simpleWithAgeMatch[1].trim();
+              sourceUrl = simpleWithAgeMatch[2];
+              age = simpleWithAgeMatch[3].trim();
+            } else {
+              // Fallback to single URL: "Source Name URL"
+              const singleUrlMatch = rawSource.match(/(.*?)\s+(https?:\/\/\S+)$/);
+              if (singleUrlMatch) {
+                sourceName = singleUrlMatch[1].trim();
+                sourceUrl = singleUrlMatch[2];
+              }
+            }
           }
         }
       }

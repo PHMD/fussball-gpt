@@ -5,8 +5,15 @@
  * Now with dynamic prompts based on user preferences!
  */
 
-import { anthropic } from '@ai-sdk/anthropic';
-import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { anthropic, type AnthropicProviderOptions } from '@ai-sdk/anthropic';
+import {
+  streamText,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type UIMessage,
+} from 'ai';
+import type { QueryCategory } from '@/lib/query-classifier';
 import { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { kv } from '@vercel/kv';
@@ -26,6 +33,16 @@ import { classifyQuery, shouldFetchSource, estimateTokenSavings } from '@/lib/qu
 
 // Allow streaming responses up to 60 seconds
 export const maxDuration = 60;
+
+// Map query category to effort level for Opus 4.5
+const CATEGORY_EFFORT: Record<QueryCategory, 'low' | 'medium' | 'high'> = {
+  news: 'low',       // Simple retrieval
+  meta: 'low',       // Explaining capabilities
+  general: 'medium', // Balanced
+  standings: 'medium', // Data presentation
+  player: 'high',    // Complex stats analysis
+  match: 'high',     // Multi-factor analysis
+};
 
 // Rate limiting: 5 requests per 30 seconds per IP
 // Only enabled in production when KV env vars are available
@@ -139,6 +156,17 @@ export async function POST(req: NextRequest) {
     console.log('⏭️  Skipping news fetch (not required for this query type)');
   }
 
+  // Debug: Log first article to verify data
+  if (newsArticles.length > 0) {
+    const firstArticle = newsArticles[0];
+    console.log('📰 Sample article data:', {
+      title: firstArticle.title?.substring(0, 50),
+      url: firstArticle.url,
+      image_url: firstArticle.image_url,
+      age: firstArticle.age,
+    });
+  }
+
   // Build context string for LLM with all data sources
   const dataContext = toContextString({
     news_articles: newsArticles,
@@ -183,22 +211,57 @@ export async function POST(req: NextRequest) {
   // Build dynamic system prompt based on user preferences
   const systemPrompt = buildSystemPrompt(profile, fullContext);
 
-  // Stream response from Claude
+  // Stream response from Claude Opus 4.5 with dynamic effort
   const result = streamText({
-    model: anthropic('claude-sonnet-4-20250514'),
+    model: anthropic('claude-opus-4-5-20251101'),
     system: systemPrompt,
     messages: convertToModelMessages(messages),
+    providerOptions: {
+      anthropic: {
+        effort: CATEGORY_EFFORT[classification.category],
+        cacheControl: { type: 'ephemeral' },
+      } satisfies AnthropicProviderOptions,
+    },
     onError({ error }) {
       console.error('AI SDK Error:', error);
     },
   });
 
-  return result.toUIMessageStreamResponse({
-    onError: error => {
+  console.log('🚀 Using Opus 4.5 with effort:', CATEGORY_EFFORT[classification.category]);
+
+  // Create UI message stream that sends articles BEFORE LLM response
+  const stream = createUIMessageStream({
+    execute: ({ writer }) => {
+      // Stream articles immediately as data part (before LLM starts)
+      // Uses 'data-articles' type which appears in message.parts
+      if (newsArticles.length > 0) {
+        console.log('📤 Streaming articles to client:', newsArticles.length);
+        writer.write({
+          type: 'data-articles',
+          id: 'articles',
+          data: {
+            articles: newsArticles.map((article) => ({
+              title: article.title,
+              url: article.url,
+              image_url: article.image_url,
+              favicon_url: article.favicon_url,
+              age: article.age,
+              summary: article.summary,
+            })),
+          },
+        });
+      }
+
+      // Merge the LLM stream
+      writer.merge(result.toUIMessageStream());
+    },
+    onError: (error) => {
       if (error instanceof Error) {
         return `Error: ${error.message}`;
       }
       return 'An error occurred while processing your request.';
     },
   });
+
+  return createUIMessageStreamResponse({ stream });
 }

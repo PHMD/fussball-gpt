@@ -9,6 +9,7 @@
 import { Card, CardContent, CardTitle } from './card';
 import { ExternalLink } from 'lucide-react';
 import type { Citation } from '@/lib/utils/parse-citations';
+import { proxyThumbnail } from '@/lib/utils/image-proxy';
 
 export interface CitationSourceCardProps {
   citation: Citation;
@@ -17,6 +18,10 @@ export interface CitationSourceCardProps {
 
 export function CitationSourceCard({ citation, language = 'en' }: CitationSourceCardProps) {
   const { citationNumber, source, url, imageUrl, faviconUrl, age } = citation;
+
+  // Use server-side proxy for all images to bypass CORS/403 restrictions
+  const proxiedImageUrl = proxyThumbnail(imageUrl);
+  const proxiedFaviconUrl = proxyThumbnail(faviconUrl);
 
   // Extract domain from URL for display
   const getDomain = () => {
@@ -37,14 +42,15 @@ export function CitationSourceCard({ citation, language = 'en' }: CitationSource
       className="scroll-mt-4 min-w-[220px] max-w-[220px] shrink-0 overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer"
       onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
     >
-      {imageUrl && (
+      {proxiedImageUrl && (
         <div className="relative w-full h-36 bg-muted">
           <img
-            src={imageUrl}
+            src={proxiedImageUrl}
             alt={source}
             className="w-full h-full object-cover"
+            loading="lazy"
             onError={(e) => {
-              // Hide image if it fails to load
+              // Hide image container if it fails to load
               e.currentTarget.parentElement!.style.display = 'none';
             }}
           />
@@ -54,15 +60,16 @@ export function CitationSourceCard({ citation, language = 'en' }: CitationSource
         {/* Domain/Source at top with favicon */}
         {domain && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {faviconUrl ? (
+            {proxiedFaviconUrl ? (
               <img
-                src={faviconUrl}
+                src={proxiedFaviconUrl}
                 alt=""
                 className="h-3 w-3 shrink-0"
+                loading="lazy"
                 onError={(e) => {
                   // Fallback to ExternalLink icon if favicon fails
                   e.currentTarget.style.display = 'none';
-                  e.currentTarget.insertAdjacentHTML('afterend', '<svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>');
+                  e.currentTarget.insertAdjacentHTML('afterend', '<svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>');
                 }}
               />
             ) : (
