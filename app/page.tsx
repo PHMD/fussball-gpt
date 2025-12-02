@@ -21,7 +21,7 @@ import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
-import { AssistantMessage } from '@/components/ui/assistant-message';
+import { AssistantMessage, SourcesCarousel } from '@/components/ui/assistant-message';
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
@@ -187,6 +187,10 @@ export default function ChatPage() {
             return articlesPart?.data?.articles || [];
           })();
 
+          const messageText = message.parts
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join('');
+
           return (
             <div key={message.id}>
               <Message from={message.role === 'user' ? 'user' : 'assistant'}>
@@ -202,15 +206,21 @@ export default function ChatPage() {
                     </div>
                   ) : (
                     <AssistantMessage
-                      text={message.parts
-                        .map((part) => (part.type === 'text' ? part.text : ''))
-                        .join('')}
+                      text={messageText}
                       articles={messageArticles}
                       language={profile.language}
                     />
                   )}
                 </MessageContent>
               </Message>
+              {/* Sources carousel OUTSIDE MessageContent for overflow effect */}
+              {message.role === 'assistant' && (
+                <SourcesCarousel
+                  text={messageText}
+                  articles={messageArticles}
+                  language={profile.language}
+                />
+              )}
             </div>
           );
         })}

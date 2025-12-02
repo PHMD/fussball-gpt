@@ -12,26 +12,14 @@ interface AssistantMessageProps {
   language: Language;
 }
 
-/**
- * Assistant message component that filters articles to only show cited ones
- *
- * Parses the response text to find [N] citation patterns, then filters
- * the articles carousel to only show articles that were actually cited.
- * Articles are renumbered sequentially (1, 2, 3...) based on order of first citation.
- */
-export function AssistantMessage({ text, articles, language }: AssistantMessageProps) {
-  const isGerman = language === 'de';
-
-  // Parse citations ONCE - get transformed content and index mapping
+// Hook to compute citations - shared between text and carousel
+export function useCitedArticles(text: string, articles: Article[]) {
   const { content, indexMap } = useMemo(() => {
     return parseCitations(text, articles);
   }, [text, articles]);
 
-  // Build ordered list of cited articles with their NEW sequential display numbers
   const citedArticles = useMemo(() => {
     const result: Array<{ article: Article; displayNumber: number; originalIndex: number }> = [];
-
-    // indexMap: original 0-based index -> new 1-based display number
     indexMap.forEach((displayNumber, originalIndex) => {
       if (originalIndex < articles.length) {
         result.push({
@@ -41,46 +29,69 @@ export function AssistantMessage({ text, articles, language }: AssistantMessageP
         });
       }
     });
-
-    // Sort by display number so they appear in citation order
     return result.sort((a, b) => a.displayNumber - b.displayNumber);
   }, [articles, indexMap]);
 
-  return (
-    <>
-      {/* Main AI Response - pass pre-computed content (already has [N](url) links) */}
-      <Response>{content}</Response>
+  return { content, citedArticles };
+}
 
-      {/* Article Sources - at bottom, overflowing the content column */}
-      {citedArticles.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
-            {isGerman ? 'Quellen' : 'Sources'}
-          </h3>
-          {/* Negative margins to overflow content column, with scroll padding */}
-          <div className="-mx-8 px-8">
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin snap-x snap-mandatory">
-              {citedArticles.map(({ article, displayNumber, originalIndex }) => (
-                <CitationSourceCard
-                  key={originalIndex}
-                  citation={{
-                    text: '',
-                    citationNumber: displayNumber, // NEW sequential number (1, 2, 3...)
-                    source: article.title,
-                    url: article.url,
-                    imageUrl: article.image_url,
-                    faviconUrl: article.favicon_url,
-                    age: article.age,
-                    summary: article.summary,
-                  }}
-                  language={language}
-                  className="snap-start"
-                />
-              ))}
-            </div>
-          </div>
+/**
+ * Assistant message TEXT only - renders inside MessageContent
+ */
+export function AssistantMessageText({ text, articles }: { text: string; articles: Article[] }) {
+  const { content } = useCitedArticles(text, articles);
+  return <Response>{content}</Response>;
+}
+
+/**
+ * Sources carousel - renders OUTSIDE MessageContent for overflow effect
+ */
+export function SourcesCarousel({
+  text,
+  articles,
+  language,
+}: AssistantMessageProps) {
+  const isGerman = language === 'de';
+  const { citedArticles } = useCitedArticles(text, articles);
+
+  if (citedArticles.length === 0) return null;
+
+  return (
+    <div className="mt-4 mb-6">
+      <div className="max-w-2xl mx-auto px-4">
+        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
+          {isGerman ? 'Quellen' : 'Sources'}
+        </h3>
+      </div>
+      {/* Full-width carousel with padding to align start with content */}
+      <div className="overflow-x-auto scrollbar-thin">
+        <div className="flex gap-3 px-4 md:px-[calc(50%-320px)] pb-2 snap-x snap-mandatory">
+          {citedArticles.map(({ article, displayNumber, originalIndex }) => (
+            <CitationSourceCard
+              key={originalIndex}
+              citation={{
+                text: '',
+                citationNumber: displayNumber,
+                source: article.title,
+                url: article.url,
+                imageUrl: article.image_url,
+                faviconUrl: article.favicon_url,
+                age: article.age,
+                summary: article.summary,
+              }}
+              language={language}
+              className="snap-start"
+            />
+          ))}
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
+}
+
+/**
+ * Combined component for backwards compatibility (if needed)
+ */
+export function AssistantMessage({ text, articles, language }: AssistantMessageProps) {
+  return <AssistantMessageText text={text} articles={articles} />;
 }
