@@ -65,7 +65,7 @@ export function SourcesCarousel({
       </div>
       {/* Full-bleed carousel: breaks out of container to full viewport width */}
       <div
-        className="overflow-x-auto scrollbar-none"
+        className="overflow-x-auto scrollbar-hide"
         style={{
           width: '100vw',
           marginLeft: 'calc(-50vw + 50%)',
