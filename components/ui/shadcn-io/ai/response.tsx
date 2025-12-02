@@ -399,7 +399,13 @@ export const Response = memo(
     return (
       <div
         className={cn(
-          'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+          'size-full',
+          // Prose-like typography for readability
+          'text-base leading-7',
+          // Paragraph spacing
+          '[&>p]:mb-4 [&>p:last-child]:mb-0',
+          // Remove top margin from first element
+          '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
           className
         )}
         {...props}

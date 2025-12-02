@@ -168,7 +168,7 @@ export default function ChatPage() {
       {/* Chat Messages - Only shown when there are messages */}
       {hasMessages && (
         <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
-          <ConversationContent className="max-w-4xl mx-auto pb-48">
+          <ConversationContent className="max-w-2xl mx-auto pb-48 px-4">
 
         {messages.map((message, messageIndex) => {
           // Extract articles from this message's parts for citation lookups
@@ -248,7 +248,7 @@ export default function ChatPage() {
       {/* Floating Input - Only shown when there are messages */}
       {hasMessages && (
         <div className="fixed bottom-0 left-0 right-0 z-10 px-4 py-4 bg-background">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-2xl mx-auto">
             <PromptInput
               className="bg-muted shadow-lg"
               value={input}
