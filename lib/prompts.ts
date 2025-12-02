@@ -29,15 +29,14 @@ Du hast Zugriff auf aktuelle Sportdaten. Bei Antworten:
 
 FORMATIERUNGSREGELN - IMMER ANWENDEN:
 
-1. ÜBERSCHRIFTEN (##) für jeden Hauptabschnitt
+1. Fließtext als Absätze (KEINE ## Überschriften am Anfang)
 2. LEERZEILE zwischen jedem Absatz (doppelter Zeilenumbruch)
-3. **Fettdruck** für wichtige Fakten
+3. **Fettdruck** für wichtige Fakten und Schlüsselwörter
 4. TABELLEN für strukturierte Daten:
    - Spieltermine (Tag | Zeit | Spiel | Quoten)
    - Spielerstatistiken (Spieler | Tore | Vorlagen | Minuten)
    - Teamvergleiche (Team | Stat1 | Stat2)
-5. Listen mit Markdown-Bindestrichen (-) für 2+ separate Items
-6. Absätze durch eine Leerzeile trennen`;
+5. Listen mit Markdown-Bindestrichen (-) für 2+ separate Items`;
   } else {
     return `You are Fußball GPT, an AI assistant for German football.
 
@@ -56,15 +55,14 @@ You have access to real-time sports data. When answering:
 
 FORMATTING RULES - ALWAYS APPLY:
 
-1. HEADINGS (##) for each main section
+1. Flowing prose as paragraphs (NO ## headings at start)
 2. BLANK LINE between each paragraph (double line break)
-3. **Bold** for important facts
+3. **Bold** for important facts and key terms
 4. TABLES for structured data:
    - Match schedules (Day | Time | Match | Odds)
    - Player statistics (Player | Goals | Assists | Minutes)
    - Team comparisons (Team | Stat1 | Stat2)
-5. Lists with markdown hyphens (-) for 2+ separate items
-6. Separate paragraphs with one blank line`;
+5. Lists with markdown hyphens (-) for 2+ separate items`;
   }
 }
 
@@ -247,21 +245,23 @@ function getOutputStructure(language: Language): string {
     return `
 <output_structure>
 Antworte in dieser Reihenfolge:
-1. Hauptantwort mit **Fettdruck** für Schlüsselfakten und (via [N]) Zitationen
+1. Hauptantwort als Fließtext (KEINE Überschriften mit ##) mit **Fettdruck** für Schlüsselfakten und (via [N]) Zitationen
 2. Tabellen für strukturierte Daten (Spieler, Ergebnisse, Termine)
-3. Anschlussfragen
+3. Anschlussfragen (als Aufzählung mit -)
 
-HINWEIS: Artikel werden automatisch im Karussell über der Antwort angezeigt. Nicht im Text wiederholen.
+WICHTIG: Beginne NICHT mit einer Überschrift (## oder #). Starte direkt mit dem Inhalt.
+HINWEIS: Artikel werden automatisch über der Antwort angezeigt. Nicht im Text wiederholen.
 </output_structure>`;
   } else {
     return `
 <output_structure>
 Respond in this order:
-1. Main answer with **bold** for key facts and (via [N]) citations
+1. Main answer as flowing prose (NO headings with ##) with **bold** for key facts and (via [N]) citations
 2. Tables for structured data (players, results, fixtures)
-3. Follow-up questions
+3. Follow-up questions (as bullet list with -)
 
-NOTE: Articles are automatically shown in carousel above response. Do not repeat in text.
+IMPORTANT: Do NOT start with a heading (## or #). Start directly with the content.
+NOTE: Articles are automatically shown above response. Do not repeat in text.
 </output_structure>`;
   }
 }

@@ -22,13 +22,6 @@ import { Suggestions, Suggestion } from '@/components/ui/suggestion';
 import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
 import { CitationSourceCard } from '@/components/ui/citation-source-card';
 
 export default function ChatPage() {
@@ -168,35 +161,30 @@ export default function ChatPage() {
                     </div>
                   ) : (
                     <>
-                      {/* Article Discovery Carousel - show if message has articles */}
+                      {/* Article Sources - scrollable row like old sources section */}
                       {messageArticles.length > 0 && (
                         <div className="mb-6">
                           <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
-                            {isGerman ? 'Aktuelle Artikel' : 'Recent Articles'}
+                            {isGerman ? 'Quellen' : 'Sources'}
                           </h3>
-                          <Carousel opts={{ align: 'start', loop: false }} className="w-full">
-                            <CarouselContent className="-ml-2 md:-ml-4">
-                              {messageArticles.map((article, index) => (
-                                <CarouselItem key={index} className="pl-2 md:pl-4 basis-auto">
-                                  <CitationSourceCard
-                                    citation={{
-                                      text: '',
-                                      citationNumber: index + 1,
-                                      source: article.title,
-                                      url: article.url,
-                                      imageUrl: article.image_url,
-                                      faviconUrl: article.favicon_url,
-                                      age: article.age,
-                                      summary: article.summary,
-                                    }}
-                                    language={profile.language}
-                                  />
-                                </CarouselItem>
-                              ))}
-                            </CarouselContent>
-                            <CarouselPrevious className="hidden md:flex" />
-                            <CarouselNext className="hidden md:flex" />
-                          </Carousel>
+                          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                            {messageArticles.map((article, index) => (
+                              <CitationSourceCard
+                                key={index}
+                                citation={{
+                                  text: '',
+                                  citationNumber: index + 1,
+                                  source: article.title,
+                                  url: article.url,
+                                  imageUrl: article.image_url,
+                                  faviconUrl: article.favicon_url,
+                                  age: article.age,
+                                  summary: article.summary,
+                                }}
+                                language={profile.language}
+                              />
+                            ))}
+                          </div>
                         </div>
                       )}
 
