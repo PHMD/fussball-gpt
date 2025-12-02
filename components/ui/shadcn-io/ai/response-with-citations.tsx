@@ -1,23 +1,27 @@
 'use client';
 
-import { parseCitations } from '@/lib/utils/parse-citations';
+import { parseCitations, type Article } from '@/lib/utils/parse-citations';
 import { Response, type ResponseProps } from './response';
 import { cn } from '@/lib/utils';
-import { CitationSourceCard } from '@/components/ui/citation-source-card';
 
 export interface ResponseWithCitationsProps extends ResponseProps {
   language?: 'en' | 'de';
+  articles?: Article[]; // Pre-streamed articles for [N] citation lookups
 }
 
 /**
  * Response component with automatic citation parsing and markdown rendering
  *
- * Parses LLM responses for citation markers (e.g., "via API-Football"),
- * renders markdown content using the unified Response component, and displays sources section.
+ * Parses LLM responses for citation markers:
+ * - (via [1]), (via [2]) - article references (looks up from articles prop)
+ * - (via API-Football) - API source references
+ *
+ * Articles are shown in carousel above, so we just render inline citation superscripts.
  */
 export function ResponseWithCitations({
   children,
   language = 'en',
+  articles = [],
   className,
   ...props
 }: ResponseWithCitationsProps) {
@@ -26,51 +30,19 @@ export function ResponseWithCitations({
     return <Response {...props}>{children}</Response>;
   }
 
-  const parsed = parseCitations(children);
-
-  // If no citations found, render normal Response (with markdown)
-  if (parsed.citations.length === 0) {
-    return <Response {...props}>{children}</Response>;
-  }
+  // Parse citations with articles array for [N] lookups
+  const parsed = parseCitations(children, articles);
 
   // Build full content with citation superscripts
   const fullContent = parsed.segments
     .map((segment) => segment.content)
     .join(' ');
 
-  // Bilingual labels
-  const labels = {
-    sources: language === 'de' ? 'Quellen von Kicker' : 'Sources from Kicker',
-  };
-
+  // Render response with markdown
+  // Articles are already shown in carousel above, no need for sources section
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* AI Response with Markdown - using unified Response component */}
+    <div className={cn(className)}>
       <Response {...props}>{fullContent}</Response>
-
-      {/* Sources Section - Only show article sources, not background APIs */}
-      {(() => {
-        // Filter out background API sources (API-Football, TheSportsDB, The Odds API)
-        const backgroundAPIs = ['API-Football', 'TheSportsDB', 'The Odds API'];
-        const articleCitations = parsed.citations.filter(
-          (citation) => !backgroundAPIs.includes(citation.source)
-        );
-
-        return articleCitations.length > 0 ? (
-          <div className="border-t pt-6 mt-8">
-            <h3 className="text-base font-semibold mb-4">{labels.sources}</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {articleCitations.map((citation) => (
-                <CitationSourceCard
-                  key={citation.citationNumber}
-                  citation={citation}
-                  language={language}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null;
-      })()}
     </div>
   );
 }

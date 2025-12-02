@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -46,26 +46,8 @@ export default function ChatPage() {
     body: { userProfile: profile },
   });
 
-  // Extract articles from the last assistant message's parts for carousel display
-  // Articles are streamed as 'data-articles' type in message.parts
-  const articles = useMemo(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage?.parts) return [];
-
-    // Find the data-articles part in message.parts
-    const articlesPart = lastMessage.parts.find(
-      (part): part is { type: 'data-articles'; data: { articles: Array<{
-        title: string;
-        url?: string;
-        image_url?: string;
-        favicon_url?: string;
-        age?: string;
-        summary?: string;
-      }> } } => part.type === 'data-articles'
-    );
-
-    return articlesPart?.data?.articles || [];
-  }, [messages]);
+  // Articles are now extracted per-message inside the render loop
+  // This allows each message to have its own article carousel
 
   const handleSubmit = () => {
     if (input.trim() && status === 'ready') {
@@ -154,65 +136,83 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((message, messageIndex) => (
-          <div key={message.id}>
-            <Message from={message.role === 'user' ? 'user' : 'assistant'}>
-              <MessageContent>
-                {message.role === 'user' ? (
-                  <div className="text-sm">
-                    {message.parts.map((part, index) => {
-                      if (part.type === 'text') {
-                        return <span key={index}>{part.text}</span>;
-                      }
-                      return null;
-                    })}
-                  </div>
-                ) : (
-                  <>
-                    {/* Article Discovery Carousel - show for last assistant message only */}
-                    {messageIndex === messages.length - 1 && articles.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
-                          {isGerman ? 'Aktuelle Artikel' : 'Recent Articles'}
-                        </h3>
-                        <Carousel opts={{ align: 'start', loop: false }} className="w-full">
-                          <CarouselContent className="-ml-2 md:-ml-4">
-                            {articles.map((article, index) => (
-                              <CarouselItem key={index} className="pl-2 md:pl-4 basis-auto">
-                                <CitationSourceCard
-                                  citation={{
-                                    text: '',
-                                    citationNumber: index + 1,
-                                    source: article.title,
-                                    url: article.url,
-                                    imageUrl: article.image_url,
-                                    faviconUrl: article.favicon_url,
-                                    age: article.age,
-                                    summary: article.summary,
-                                  }}
-                                  language={profile.language}
-                                />
-                              </CarouselItem>
-                            ))}
-                          </CarouselContent>
-                          <CarouselPrevious className="hidden md:flex" />
-                          <CarouselNext className="hidden md:flex" />
-                        </Carousel>
-                      </div>
-                    )}
+        {messages.map((message, messageIndex) => {
+          // Extract articles from this message's parts for citation lookups
+          const messageArticles = (() => {
+            if (message.role !== 'assistant') return [];
+            const articlesPart = message.parts.find(
+              (part): part is { type: 'data-articles'; data: { articles: Array<{
+                title: string;
+                url?: string;
+                image_url?: string;
+                favicon_url?: string;
+                age?: string;
+                summary?: string;
+              }> } } => part.type === 'data-articles'
+            );
+            return articlesPart?.data?.articles || [];
+          })();
 
-                    {/* Main AI Response */}
-                    <ResponseWithCitations language={profile.language}>
-                      {message.parts
-                        .map((part) => (part.type === 'text' ? part.text : ''))
-                        .join('')}
-                    </ResponseWithCitations>
-                  </>
-                )}
-              </MessageContent>
-            </Message>
-          </div>
-        ))}
+          return (
+            <div key={message.id}>
+              <Message from={message.role === 'user' ? 'user' : 'assistant'}>
+                <MessageContent>
+                  {message.role === 'user' ? (
+                    <div className="text-sm">
+                      {message.parts.map((part, index) => {
+                        if (part.type === 'text') {
+                          return <span key={index}>{part.text}</span>;
+                        }
+                        return null;
+                      })}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Article Discovery Carousel - show if message has articles */}
+                      {messageArticles.length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">
+                            {isGerman ? 'Aktuelle Artikel' : 'Recent Articles'}
+                          </h3>
+                          <Carousel opts={{ align: 'start', loop: false }} className="w-full">
+                            <CarouselContent className="-ml-2 md:-ml-4">
+                              {messageArticles.map((article, index) => (
+                                <CarouselItem key={index} className="pl-2 md:pl-4 basis-auto">
+                                  <CitationSourceCard
+                                    citation={{
+                                      text: '',
+                                      citationNumber: index + 1,
+                                      source: article.title,
+                                      url: article.url,
+                                      imageUrl: article.image_url,
+                                      faviconUrl: article.favicon_url,
+                                      age: article.age,
+                                      summary: article.summary,
+                                    }}
+                                    language={profile.language}
+                                  />
+                                </CarouselItem>
+                              ))}
+                            </CarouselContent>
+                            <CarouselPrevious className="hidden md:flex" />
+                            <CarouselNext className="hidden md:flex" />
+                          </Carousel>
+                        </div>
+                      )}
+
+                      {/* Main AI Response - pass articles for [N] citation lookups */}
+                      <ResponseWithCitations language={profile.language} articles={messageArticles}>
+                        {message.parts
+                          .map((part) => (part.type === 'text' ? part.text : ''))
+                          .join('')}
+                      </ResponseWithCitations>
+                    </>
+                  )}
+                </MessageContent>
+              </Message>
+            </div>
+          );
+        })}
 
         {(status === 'submitted' || status === 'streaming') && (
           <Message from="assistant">

@@ -138,8 +138,8 @@ IMPORTANT: This user prefers DETAILED answers.
 }
 
 /**
- * Get source attribution rules (condensed XML format)
- * Reduced from ~800 to ~250 tokens
+ * Get source attribution rules (simplified - articles referenced by ID only)
+ * Articles are pre-streamed to client, LLM just references by number
  */
 export function getSourceAttributionRules(language: Language): string {
   if (language === Language.GERMAN) {
@@ -150,17 +150,11 @@ JEDE Faktenaussage braucht eine Quellenangabe.
 API-QUELLEN: (via API-Football), (via TheSportsDB), (via The Odds API)
 
 NEWS-ARTIKEL: Artikel sind nummeriert <article id="1">, <article id="2">, etc.
-Zitiere mit: (via [id] TITLE URL IMAGE AGE)
-- [id] = Artikelnummer aus dem id-Attribut
-- TITLE = exakter Wert aus <title>
-- URL = exakter Wert aus <url>
-- IMAGE = exakter Wert aus <image>
-- AGE = exakter Wert aus <age>
+Zitiere NUR mit der Artikelnummer: (via [1]), (via [2]), (via [3])
 
-Beispiel für <article id="3"><title>BVB News</title><url>https://x.de</url><image>https://img.de/a.jpg</image><age>2h ago</age>:
-(via [3] BVB News https://x.de https://img.de/a.jpg 2h ago)
+Beispiel: "Bayern gewann 3:0 gegen Dortmund (via [2])."
 
-WICHTIG: Kopiere EXAKT die Werte aus den XML-Tags. Erfinde KEINE URLs.
+WICHTIG: Gib NUR die Nummer an, KEINE URLs oder Titel. Der Client kennt die Artikel bereits.
 </citation_rules>`;
   } else {
     return `
@@ -170,17 +164,11 @@ EVERY fact needs a source citation.
 API SOURCES: (via API-Football), (via TheSportsDB), (via The Odds API)
 
 NEWS ARTICLES: Articles are numbered <article id="1">, <article id="2">, etc.
-Cite with: (via [id] TITLE URL IMAGE AGE)
-- [id] = article number from id attribute
-- TITLE = exact value from <title>
-- URL = exact value from <url>
-- IMAGE = exact value from <image>
-- AGE = exact value from <age>
+Cite ONLY with article number: (via [1]), (via [2]), (via [3])
 
-Example for <article id="3"><title>BVB News</title><url>https://x.de</url><image>https://img.de/a.jpg</image><age>2h ago</age>:
-(via [3] BVB News https://x.de https://img.de/a.jpg 2h ago)
+Example: "Bayern won 3-0 against Dortmund (via [2])."
 
-IMPORTANT: Copy EXACT values from XML tags. Do NOT invent URLs.
+IMPORTANT: Only provide the number, NO URLs or titles. The client already has the articles.
 </citation_rules>`;
   }
 }
@@ -206,32 +194,13 @@ export function getLanguageGuidance(language: Language): string {
 }
 
 /**
- * Get article recommendation instructions (condensed)
+ * Get article recommendation instructions
+ * Articles are already shown in carousel, no need to list again
  */
-export function getArticleRecommendationRules(language: Language): string {
-  if (language === Language.GERMAN) {
-    return `
-<related_articles>
-Nach der Antwort: 2-3 relevante Kicker-Artikel aus dem NEWS-Bereich.
-Format: 📰 [Artikeltitel](URL)
-
-REGELN:
-- Nur URLs aus dem bereitgestellten NEWS-Bereich verwenden
-- Nur relevante Artikel zeigen (direkt, verwandt, oder kontextuell)
-- OK, keine Artikel zu zeigen, wenn nichts relevant ist
-</related_articles>`;
-  } else {
-    return `
-<related_articles>
-After answering: list 2-3 relevant Kicker articles from NEWS section.
-Format: 📰 [Article Title](URL)
-
-RULES:
-- Only use URLs from provided NEWS section
-- Only show relevant articles (direct, related, or contextual)
-- OK to show zero articles if nothing is relevant
-</related_articles>`;
-  }
+export function getArticleRecommendationRules(_language: Language): string {
+  // Articles are pre-streamed and shown in carousel above the response
+  // No need to duplicate them in the text output
+  return '';
 }
 
 /**
@@ -271,25 +240,28 @@ Keep natural and conversational.
 
 /**
  * Get XML output structure markers
+ * Articles are shown in carousel above response, not in text
  */
 function getOutputStructure(language: Language): string {
   if (language === Language.GERMAN) {
     return `
 <output_structure>
 Antworte in dieser Reihenfolge:
-1. Hauptantwort mit **Fettdruck** für Schlüsselfakten und (via QUELLE) Zitationen
+1. Hauptantwort mit **Fettdruck** für Schlüsselfakten und (via [N]) Zitationen
 2. Tabellen für strukturierte Daten (Spieler, Ergebnisse, Termine)
-3. 📰 Verwandte Artikel (wenn relevant)
-4. Anschlussfragen
+3. Anschlussfragen
+
+HINWEIS: Artikel werden automatisch im Karussell über der Antwort angezeigt. Nicht im Text wiederholen.
 </output_structure>`;
   } else {
     return `
 <output_structure>
 Respond in this order:
-1. Main answer with **bold** for key facts and (via SOURCE) citations
+1. Main answer with **bold** for key facts and (via [N]) citations
 2. Tables for structured data (players, results, fixtures)
-3. 📰 Related articles (if relevant)
-4. Follow-up questions
+3. Follow-up questions
+
+NOTE: Articles are automatically shown in carousel above response. Do not repeat in text.
 </output_structure>`;
   }
 }
