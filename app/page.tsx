@@ -55,6 +55,8 @@ export default function ChatPage() {
 
   const isGerman = profile.language === Language.GERMAN;
 
+  const hasMessages = messages.length > 0;
+
   return (
     <div className="flex flex-col h-screen relative">
       {/* Onboarding Dialog */}
@@ -66,11 +68,10 @@ export default function ChatPage() {
         />
       )}
 
-      {/* Chat Messages */}
-      <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
-        <ConversationContent className="max-w-4xl mx-auto pb-48">
-        {messages.length === 0 && (
-          <div className="text-center text-muted-foreground mt-16">
+      {/* Empty State - Centered Welcome + Input */}
+      {!hasMessages && (
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="text-center text-muted-foreground mb-8">
             <p className="text-lg mb-2">
               {isGerman ? 'Willkommen bei Fußball GPT!' : 'Welcome to Fußball GPT!'}
             </p>
@@ -126,7 +127,48 @@ export default function ChatPage() {
               </Suggestions>
             </div>
           </div>
-        )}
+
+          {/* Centered Input for Empty State */}
+          <div className="w-full max-w-2xl">
+            <PromptInput
+              className="bg-muted shadow-lg"
+              value={input}
+              onValueChange={setInput}
+              onSubmit={handleSubmit}
+              isLoading={status === 'submitted' || status === 'streaming'}
+            >
+              <PromptInputTextarea
+                placeholder={
+                  isGerman
+                    ? 'Frage nach Tabelle, Spielern, Spielen...'
+                    : 'Ask about Bundesliga standings, players, fixtures...'
+                }
+                disabled={status !== 'ready'}
+              />
+              <PromptInputActions className="justify-end">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  disabled={!input.trim() || status !== 'ready'}
+                  onClick={handleSubmit}
+                >
+                  {status === 'submitted' || status === 'streaming' ? (
+                    <SquareIcon className="size-5 fill-current" />
+                  ) : (
+                    <ArrowUpIcon className="size-5" />
+                  )}
+                </Button>
+              </PromptInputActions>
+            </PromptInput>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Messages - Only shown when there are messages */}
+      {hasMessages && (
+        <Conversation className="flex-1 relative" style={{ minHeight: 0 }}>
+          <ConversationContent className="max-w-4xl mx-auto pb-48">
 
         {messages.map((message, messageIndex) => {
           // Extract articles from this message's parts for citation lookups
@@ -196,48 +238,51 @@ export default function ChatPage() {
         )}
         </ConversationContent>
 
-        {/* Fade effect overlay - positioned above content */}
-        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
+          {/* Fade effect overlay - positioned above content */}
+          <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background to-transparent pointer-events-none z-[5]" />
 
-        <ConversationScrollButton />
-      </Conversation>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
 
-      {/* Floating Input */}
-      <div className="absolute bottom-12 left-0 right-0 z-10 px-4">
-        <div className="max-w-4xl mx-auto">
-          <PromptInput
-            className="bg-muted shadow-lg"
-            value={input}
-            onValueChange={setInput}
-            onSubmit={handleSubmit}
-            isLoading={status === 'submitted' || status === 'streaming'}
-          >
-            <PromptInputTextarea
-              placeholder={
-                isGerman
-                  ? 'Frage nach Tabelle, Spielern, Spielen...'
-                  : 'Ask about Bundesliga standings, players, fixtures...'
-              }
-              disabled={status !== 'ready'}
-            />
-            <PromptInputActions className="justify-end">
-              <Button
-                type="submit"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                disabled={!input.trim() || status !== 'ready'}
-                onClick={handleSubmit}
-              >
-                {status === 'submitted' || status === 'streaming' ? (
-                  <SquareIcon className="size-5 fill-current" />
-                ) : (
-                  <ArrowUpIcon className="size-5" />
-                )}
-              </Button>
-            </PromptInputActions>
-          </PromptInput>
+      {/* Floating Input - Only shown when there are messages */}
+      {hasMessages && (
+        <div className="fixed bottom-0 left-0 right-0 z-10 px-4 py-4 bg-background">
+          <div className="max-w-4xl mx-auto">
+            <PromptInput
+              className="bg-muted shadow-lg"
+              value={input}
+              onValueChange={setInput}
+              onSubmit={handleSubmit}
+              isLoading={status === 'submitted' || status === 'streaming'}
+            >
+              <PromptInputTextarea
+                placeholder={
+                  isGerman
+                    ? 'Frage nach Tabelle, Spielern, Spielen...'
+                    : 'Ask about Bundesliga standings, players, fixtures...'
+                }
+                disabled={status !== 'ready'}
+              />
+              <PromptInputActions className="justify-end">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  disabled={!input.trim() || status !== 'ready'}
+                  onClick={handleSubmit}
+                >
+                  {status === 'submitted' || status === 'streaming' ? (
+                    <SquareIcon className="size-5 fill-current" />
+                  ) : (
+                    <ArrowUpIcon className="size-5" />
+                  )}
+                </Button>
+              </PromptInputActions>
+            </PromptInput>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
