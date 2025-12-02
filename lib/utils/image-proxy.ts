@@ -23,11 +23,3 @@ export function proxyImageUrl(imageUrl: string | undefined): string | undefined 
   // Use local API route for server-side proxying
   return `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
 }
-
-/**
- * Proxy image URL for thumbnails.
- * Uses our server-side proxy to fetch images.
- */
-export function proxyThumbnail(imageUrl: string | undefined): string | undefined {
-  return proxyImageUrl(imageUrl);
-}

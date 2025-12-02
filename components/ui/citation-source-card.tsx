@@ -6,10 +6,11 @@
  * Entire card is clickable to open article in new tab.
  */
 
+import { useState } from 'react';
 import { Card, CardContent, CardTitle } from './card';
 import { ExternalLink } from 'lucide-react';
 import type { Citation } from '@/lib/utils/parse-citations';
-import { proxyThumbnail } from '@/lib/utils/image-proxy';
+import { proxyImageUrl } from '@/lib/utils/image-proxy';
 
 export interface CitationSourceCardProps {
   citation: Citation;
@@ -17,11 +18,12 @@ export interface CitationSourceCardProps {
 }
 
 export function CitationSourceCard({ citation, language = 'en' }: CitationSourceCardProps) {
+  const [faviconFailed, setFaviconFailed] = useState(false);
   const { citationNumber, source, url, imageUrl, faviconUrl, age } = citation;
 
   // Use server-side proxy for all images to bypass CORS/403 restrictions
-  const proxiedImageUrl = proxyThumbnail(imageUrl);
-  const proxiedFaviconUrl = proxyThumbnail(faviconUrl);
+  const proxiedImageUrl = proxyImageUrl(imageUrl);
+  const proxiedFaviconUrl = proxyImageUrl(faviconUrl);
 
   // Extract domain from URL for display
   const getDomain = () => {
@@ -60,17 +62,13 @@ export function CitationSourceCard({ citation, language = 'en' }: CitationSource
         {/* Domain/Source at top with favicon */}
         {domain && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {proxiedFaviconUrl ? (
+            {proxiedFaviconUrl && !faviconFailed ? (
               <img
                 src={proxiedFaviconUrl}
                 alt=""
                 className="h-3 w-3 shrink-0"
                 loading="lazy"
-                onError={(e) => {
-                  // Fallback to ExternalLink icon if favicon fails
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.insertAdjacentHTML('afterend', '<svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>');
-                }}
+                onError={() => setFaviconFailed(true)}
               />
             ) : (
               <ExternalLink className="h-3 w-3 shrink-0" />

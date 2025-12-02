@@ -22,6 +22,13 @@ import { useUserPreferences } from '@/hooks/use-user-preferences';
 import { WelcomeDialog } from '@/components/onboarding/welcome-dialog';
 import { Language } from '@/lib/user-config';
 import { AssistantMessage, SourcesCarousel } from '@/components/ui/assistant-message';
+import type { Article } from '@/lib/utils/parse-citations';
+
+/** Part type for streamed article data in assistant messages */
+interface DataArticlesPart {
+  type: 'data-articles';
+  data: { articles: Article[] };
+}
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
@@ -175,14 +182,7 @@ export default function ChatPage() {
           const messageArticles = (() => {
             if (message.role !== 'assistant') return [];
             const articlesPart = message.parts.find(
-              (part): part is { type: 'data-articles'; data: { articles: Array<{
-                title: string;
-                url?: string;
-                image_url?: string;
-                favicon_url?: string;
-                age?: string;
-                summary?: string;
-              }> } } => part.type === 'data-articles'
+              (part): part is DataArticlesPart => part.type === 'data-articles'
             );
             return articlesPart?.data?.articles || [];
           })();
